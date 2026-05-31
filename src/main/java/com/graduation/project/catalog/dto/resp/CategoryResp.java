@@ -1,0 +1,12 @@
+package com.graduation.project.catalog.dto.resp;
+
+import java.util.UUID;
+
+public record CategoryResp(
+    UUID id,
+    String name,
+    String slug,
+    String description,
+    String icon,
+    UUID parentId,
+    Integer sortOrder) {}

@@ -1,0 +1,71 @@
+package com.graduation.project.catalog.controller;
+
+import com.graduation.project.catalog.dto.resp.BrandResp;
+import com.graduation.project.catalog.dto.resp.CategoryResp;
+import com.graduation.project.catalog.dto.resp.CategoryTreeResp;
+import com.graduation.project.catalog.service.CatalogService;
+import com.graduation.project.common.resp.ApiResp;
+import java.time.Instant;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/catalog")
+@RequiredArgsConstructor
+public class CatalogController {
+
+  private final CatalogService catalogService;
+
+  // ===== Categories =====
+
+  @GetMapping("/categories/tree")
+  public ApiResp<List<CategoryTreeResp>> getCategoryTree() {
+    return ApiResp.<List<CategoryTreeResp>>builder()
+        .message("Lấy cây danh mục thành công")
+        .data(catalogService.getCategoryTree())
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @GetMapping("/categories")
+  public ApiResp<List<CategoryResp>> getAllCategories() {
+    return ApiResp.<List<CategoryResp>>builder()
+        .message("Lấy danh sách danh mục thành công")
+        .data(catalogService.getAllCategories())
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @GetMapping("/categories/{slug}")
+  public ApiResp<CategoryResp> getCategoryBySlug(@PathVariable String slug) {
+    return ApiResp.<CategoryResp>builder()
+        .message("Lấy danh mục thành công")
+        .data(catalogService.getCategoryBySlug(slug))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  // ===== Brands =====
+
+  @GetMapping("/brands")
+  public ApiResp<List<BrandResp>> getAllBrands() {
+    return ApiResp.<List<BrandResp>>builder()
+        .message("Lấy danh sách thương hiệu thành công")
+        .data(catalogService.getAllBrands())
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @GetMapping("/brands/{slug}")
+  public ApiResp<BrandResp> getBrandBySlug(@PathVariable String slug) {
+    return ApiResp.<BrandResp>builder()
+        .message("Lấy thương hiệu thành công")
+        .data(catalogService.getBrandBySlug(slug))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+}
