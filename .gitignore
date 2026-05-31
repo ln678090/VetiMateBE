@@ -1,0 +1,49 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+### Security & Secrets ###
+# Bỏ qua toàn bộ thư mục chứa public.pem và private.pem
+src/main/resources/keys/
+src/main/resources/secrets/
+src/main/resources/db/private/
+# Bỏ qua file .env (nếu bạn có dùng để cấu hình biến môi trường cục bộ)
+.env
+.env1
+.env.local
+.env.development
+.env.properties
+.env.*
+java_all_code.txt
+# Bỏ qua file nhật ký (logs) có thể chứa thông tin người dùng
+*.log
+logs/
