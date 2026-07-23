@@ -35,46 +35,73 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-  // private final RateLimitingFilter rateLimitingFilter;
   private final RsaKeyProperties rsaKeys;
 
   @Value("${app.cors.allowed-origins}")
   private List<String> allowedOrigins;
 
+  /*
+   * @Bean
+   * public SecurityFilterChain securityFilterChain(
+   * HttpSecurity http,
+   * CustomAuthenticationEntryPointOauth2 entryPointOauth2,
+   * CustomAccessDeniedHandlerOauth2 accessDeniedHandlerOauth2)
+   * throws Exception {
+   * return http.csrf(AbstractHttpConfigurer::disable)
+   * .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+   * // .addFilterBefore(rateLimitingFilter,
+   * // UsernamePasswordAuthenticationFilter.class)
+   * .authorizeHttpRequests(
+   * auth ->
+   * auth.requestMatchers("/api/auth/**")
+   * .permitAll()
+   * .requestMatchers("/api/auth/test")
+   * .permitAll()
+   * .requestMatchers(HttpMethod.GET, "/api/catalog/**")
+   * .permitAll()
+   * .requestMatchers(HttpMethod.GET, "/api/products/**")
+   * .permitAll()
+   * .requestMatchers("/api/tracking/action")
+   * .permitAll()
+   * .requestMatchers("/", "/index.html", "/dist/**", "/assets/**")
+   * .permitAll()
+   * .anyRequest()
+   * .authenticated())
+   * .oauth2ResourceServer(
+   * oauth2 ->
+   * oauth2
+   * .jwt(Customizer.withDefaults())
+   * .authenticationEntryPoint(entryPointOauth2)
+   * .accessDeniedHandler(accessDeniedHandlerOauth2))
+   * .sessionManagement(
+   * session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+   * .build();
+   * }
+   */
   @Bean
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       CustomAuthenticationEntryPointOauth2 entryPointOauth2,
-      CustomAccessDeniedHandlerOauth2 accessDeniedHandlerOauth2)
-      throws Exception {
-    return http.csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        // .addFilterBefore(rateLimitingFilter,
-        // UsernamePasswordAuthenticationFilter.class)
-        .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers("/api/auth/**")
-                    .permitAll()
-                    .requestMatchers("/api/auth/test")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/catalog/**")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/products/**")
-                    .permitAll()
-                    .requestMatchers("/api/tracking/action")
-                    .permitAll()
-                    .requestMatchers("/", "/index.html", "/dist/**", "/assets/**")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .oauth2ResourceServer(
-            oauth2 ->
-                oauth2
-                    .jwt(Customizer.withDefaults())
-                    .authenticationEntryPoint(entryPointOauth2)
-                    .accessDeniedHandler(accessDeniedHandlerOauth2))
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      CustomAccessDeniedHandlerOauth2 accessDeniedHandlerOauth2) throws Exception {
+
+    return http
+        .csrf(AbstractHttpConfigurer::disable)
+        .cors(Customizer.withDefaults())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .requestMatchers("/error").permitAll()
+            .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+            .requestMatchers("/api/tracking/action").permitAll()
+            .requestMatchers("/", "/index.html", "/dist/**", "/assets/**").permitAll()
+            .anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2 -> oauth2
+            .jwt(Customizer.withDefaults())
+            .authenticationEntryPoint(entryPointOauth2)
+            .accessDeniedHandler(accessDeniedHandlerOauth2))
+        .sessionManagement(session -> session
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();
   }
 
@@ -99,11 +126,10 @@ public class SecurityConfig {
 
   @Bean
   public UserDetailsService userDetailsService(UserRepository userRepository) {
-    return email ->
-        userRepository
-            .findByEmail(email)
-            .map(CustomUserDetails::fromUser)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+    return email -> userRepository
+        .findByEmail(email)
+        .map(CustomUserDetails::fromUser)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
   }
 
   @Bean
