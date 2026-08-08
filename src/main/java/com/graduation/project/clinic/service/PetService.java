@@ -16,5 +16,7 @@ public interface PetService {
 
   Page<PetDto> getByCustomer(UUID customerId, Pageable pageable);
 
+  void softDelete(UUID petId, UUID customerId);
+
   void delete(UUID id);
 }

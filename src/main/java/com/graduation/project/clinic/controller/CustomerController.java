@@ -29,7 +29,7 @@ public class CustomerController {
   public ApiResp<CustomerDto> getMyCustomer(
       Authentication auth) {
     UUID userId = SecurityUtils.currentUserId(auth);
-    CustomerDto dto = customerService.getOrCreateForCurrentUser(userId, null);
+    CustomerDto dto = customerService.getOrCreateForCurrentUser(userId);
     return ApiResp.<CustomerDto>builder()
         .message("Lấy hồ sơ khách hàng thành công")
         .data(dto)

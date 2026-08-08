@@ -6,6 +6,10 @@ import com.graduation.project.clinic.entity.Customer;
 import com.graduation.project.clinic.mapper.CustomerMapper;
 import com.graduation.project.clinic.repository.CustomerRepository;
 import com.graduation.project.clinic.service.CustomerService;
+import com.graduation.project.common.exception.ResourceNotFoundException;
+import com.graduation.project.user.entity.User;
+import com.graduation.project.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,28 +17,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-
+                                                                                                                                                                                                                                  
 @Service
 @RequiredArgsConstructor
 public class CustomerServiceImpl implements CustomerService {
 
   private final CustomerRepository customerRepository;
-  private final CustomerMapper customerMapper;
 
-  @Override
-  @Transactional
-  public CustomerDto getOrCreateForCurrentUser(UUID userId, String fullName) {
-    // Idempotent: đã có -> trả về; chưa có -> tạo mới link user_id
-    Customer customer = customerRepository.findByUserId(userId)
+  private final CustomerMapper customerMapper;
+private final UserRepository userRepository;
+
+@Override
+@Transactional
+public CustomerDto getOrCreateForCurrentUser(UUID userId) {
+    return customerRepository.findByUserId(userId)
+        .map(customerMapper::toDto)
         .orElseGet(() -> {
-          Customer created = Customer.builder()
-              .userId(userId)
-              .fullName(fullName)
-              .build();
-          return customerRepository.save(created);
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User không tồn tại"));
+
+            Customer customer = Customer.builder()
+                .userId(userId)
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                    .phone("null")
+                .build();
+
+            return customerMapper.toDto(customerRepository.save(customer));
         });
-    return customerMapper.toDto(customer);
-  }
+}
 
   @Override
   @Transactional

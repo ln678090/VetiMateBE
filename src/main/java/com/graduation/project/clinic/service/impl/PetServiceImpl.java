@@ -8,12 +8,16 @@ import com.graduation.project.clinic.mapper.PetMapper;
 import com.graduation.project.clinic.repository.CustomerRepository;
 import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.service.PetService;
+import com.graduation.project.common.exception.ResourceNotFoundException;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -23,6 +27,24 @@ public class PetServiceImpl implements PetService {
   private final PetRepository petRepository;
   private final CustomerRepository customerRepository;
   private final PetMapper petMapper;
+
+  @Override
+  @Transactional
+  public void softDelete(UUID petId, UUID customerId) {
+    Pet pet = petRepository.findByIdAndDeletedAtIsNull(petId)
+        .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + petId));
+
+    // Security: verify pet belongs to customer
+    if (!pet.getCustomer().getId().equals(customerId)) {
+      throw new AccessDeniedException("You don't have permission to delete this pet");
+    }
+
+    // Check if pet has future appointments
+    // (Optional: có thể thêm validation này nếu cần)
+
+    pet.setDeletedAt(Instant.now());
+    petRepository.save(pet);
+  }
 
   @Override
   @Transactional

@@ -56,6 +56,22 @@ public class Pet {
 
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
+
+  // Getter/Setter (hoặc dùng @Data của Lombok)
+  public Instant getDeletedAt() {
+    return deletedAt;
+  }
+
+  public void setDeletedAt(Instant deletedAt) {
+    this.deletedAt = deletedAt;
+  }
+
+  // Helper method
+  public boolean isDeleted() {
+    return deletedAt != null;
+  }
 
   @PrePersist
   void onCreate() {

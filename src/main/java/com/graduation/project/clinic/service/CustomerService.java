@@ -18,5 +18,5 @@ public interface CustomerService {
 
   void delete(UUID id);
 
-  CustomerDto getOrCreateForCurrentUser(UUID userId, String fullName);
+  CustomerDto getOrCreateForCurrentUser(UUID userId);
 }

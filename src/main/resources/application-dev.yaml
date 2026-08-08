@@ -9,5 +9,10 @@ spring:
 
 logging:
   level:
-    org.springframework.security: DEBUG
-
+    root: INFO
+    # Chỉ định package của bạn hiện log chi tiết (DEBUG/TRACE)
+    com.graduation.project: DEBUG
+    # Ẩn bớt log framework không cần thiết
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.apache.catalina: WARN

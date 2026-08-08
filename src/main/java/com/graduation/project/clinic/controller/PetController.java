@@ -1,7 +1,11 @@
 package com.graduation.project.clinic.controller;
 
+import com.graduation.project.auth.utils.SecurityUtils;
+import com.graduation.project.clinic.dto.CustomerDto;
 import com.graduation.project.clinic.dto.PetDto;
 import com.graduation.project.clinic.dto.req.PetRequest;
+import com.graduation.project.clinic.entity.Customer;
+import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.clinic.service.PetService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
@@ -12,7 +16,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.core.Authentication;
 import java.util.UUID;
 
 @RestController
@@ -21,6 +25,7 @@ import java.util.UUID;
 public class PetController {
 
   private final PetService petService;
+  private final CustomerService customerService;
 
   // POST /api/clinic/pets - Tạo pet
   @PostMapping
@@ -56,11 +61,13 @@ public class PetController {
         ApiResp.<Page<PetDto>>builder().message("OK").data(page).build());
   }
 
-  // DELETE /api/clinic/pets/{id} - Xóa pet
   @DeleteMapping("/{id}")
-  public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
-    petService.delete(id);
-    return ResponseEntity.ok(
-        ApiResp.<Void>builder().message("Xóa pet thành công").build());
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deletePet(
+      @PathVariable UUID id,
+      Authentication auth) {
+    UUID userId = SecurityUtils.currentUserId(auth);
+    CustomerDto customer = customerService.getOrCreateForCurrentUser(userId);
+    petService.softDelete(id, customer.id());
   }
 }

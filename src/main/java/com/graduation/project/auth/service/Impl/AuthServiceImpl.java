@@ -128,7 +128,9 @@ public class AuthServiceImpl implements AuthService {
     if (userRepository.existsByEmail(request.email())) {
       throw new IllegalArgumentException("Email already exists ");
     }
-
+if (userRepository.existsByPhone(request.phone())) {
+  throw new IllegalArgumentException("Phone already exists ");
+}
     Role userRole =
         roleRepository
             .findByName("ROLE_USER")
@@ -143,6 +145,7 @@ public class AuthServiceImpl implements AuthService {
             .password(passwordEncoder.encode(request.password()))
             .fullName(request.fullName())
             .username(request.username())
+                .phone(request.phone())
             .enabled(Boolean.TRUE)
             .createdAt(OffsetDateTime.now())
             .updatedAt(OffsetDateTime.now())

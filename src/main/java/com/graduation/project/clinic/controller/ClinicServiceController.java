@@ -3,6 +3,7 @@ package com.graduation.project.clinic.controller;
 import com.graduation.project.clinic.dto.AvailableSlotDto;
 import com.graduation.project.clinic.dto.ClinicServiceDto;
 import com.graduation.project.clinic.dto.req.ClinicServiceRequest;
+import com.graduation.project.clinic.dto.resp.AvailableSlotResponse;
 import com.graduation.project.clinic.service.AppointmentService;
 import com.graduation.project.clinic.service.ClinicServiceService;
 import com.graduation.project.common.resp.ApiResp;
@@ -30,12 +31,12 @@ public class ClinicServiceController {
 
   // GET /api/clinic/services/{id}/available-slots?date=2026-07-25
   @GetMapping("/{id}/available-slots")
-  public ApiResp<List<AvailableSlotDto>> getAvailableSlots(
+  public ApiResp<?> getAvailableSlots(
       @PathVariable UUID id,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
-    List<AvailableSlotDto> slots = appointmentService.getAvailableSlots(id, date);
-    return ApiResp.<List<AvailableSlotDto>>builder()
+    List<AvailableSlotResponse> slots = appointmentService.getAvailableSlots(id, date);
+    return ApiResp.<List<AvailableSlotResponse>>builder()
         .message("Lấy khung giờ trống thành công")
         .data(slots)
         .build();

@@ -59,6 +59,8 @@ public class User {
   @Column(name = "updated_at")
   private OffsetDateTime updatedAt;
 
+  @Column(name = "phone", length = 20)
+  private String phone;
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "user_roles",

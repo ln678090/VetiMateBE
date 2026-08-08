@@ -1,9 +1,9 @@
 package com.graduation.project.clinic.service.impl;
 
 import com.graduation.project.clinic.dto.AppointmentDto;
-import com.graduation.project.clinic.dto.AvailableSlotDto;
 import com.graduation.project.clinic.dto.req.CreateAppointmentRequest;
 import com.graduation.project.clinic.dto.req.UpdateAppointmentStatusRequest;
+import com.graduation.project.clinic.dto.resp.AvailableSlotResponse;
 import com.graduation.project.clinic.entity.Appointment;
 import com.graduation.project.clinic.entity.AppointmentStatus;
 import com.graduation.project.clinic.entity.ClinicService;
@@ -18,7 +18,6 @@ import com.graduation.project.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.chrono.ChronoLocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
-
+  private static final LocalTime OPEN_TIME = LocalTime.of(8, 0);
+  private static final LocalTime CLOSE_TIME = LocalTime.of(17, 0);
   private final AppointmentRepository appointmentRepository;
   private final PetRepository petRepository;
   private final ClinicServiceRepository clinicServiceRepository;
@@ -45,38 +46,38 @@ public class AppointmentServiceImpl implements AppointmentService {
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
   @Override
-  @Transactional(readOnly = true)
-  public List<AvailableSlotDto> getAvailableSlots(UUID serviceId, LocalDate date) {
+  @Transactional(readOnly = true) // read-only -> Hibernate skip dirty checking, nhẹ hơn
+  public List<AvailableSlotResponse> getAvailableSlots(UUID serviceId, LocalDate date) {
+
+    // 1. Lấy duration của dịch vụ (fail-fast nếu không tồn tại)
     ClinicService service = clinicServiceRepository.findById(serviceId)
-        .orElseThrow(() -> new UsernameNotFoundException("Dịch vụ không tồn tại"));
-
+        .orElseThrow(() -> new ResourceNotFoundException("Service không tồn tại: " + serviceId));
     int durationMin = service.getDurationMin();
-    if (durationMin <= 0) {
-      throw new IllegalStateException("Dịch vụ chưa cấu hình thời lượng hợp lệ");
-    }
 
-    // Khoảng ngày [00:00, 24:00) theo giờ VN -> Instant để query
-    Instant dayStart = date.atStartOfDay(ZONE).toInstant();
-    Instant dayEnd = date.plusDays(1).atStartOfDay(ZONE).toInstant();
-
-    // Lấy các lịch đã đặt trong ngày (trạng thái còn hiệu lực) - CHƯA có query này,
-    // xem lưu ý
+    // 2. Gom lịch đã đặt trong ngày (1 query)
+    Instant startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
+    Instant endOfDay = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
     List<Appointment> booked = appointmentRepository
-        .findActiveBetween(dayStart, dayEnd);
+        .findActiveByServiceAndDay(serviceId, startOfDay, endOfDay);
 
-    List<AvailableSlotDto> slots = new ArrayList<>();
-    LocalDateTime cursor = LocalDateTime.of(date, WORK_START);
-    LocalDateTime endOfDay = LocalDateTime.of(date, WORK_END);
+    // 3. Sinh slot 8h -> 17h theo duration, loại overlap + slot quá khứ
+    LocalDateTime now = LocalDateTime.now();
+    List<AvailableSlotResponse> slots = new ArrayList<>();
 
-    while (!cursor.plusMinutes(durationMin).isAfter(endOfDay)) {
-      Instant slotStart = cursor.atZone(ZONE).toInstant();
-      Instant slotEnd = cursor.plusMinutes(durationMin).atZone(ZONE).toInstant();
+    LocalTime cursor = OPEN_TIME;
+    while (!cursor.plusMinutes(durationMin).isAfter(CLOSE_TIME)) {
+      LocalTime slotEnd = cursor.plusMinutes(durationMin);
+      LocalDateTime slotStartDt = LocalDateTime.of(date, cursor);
+      LocalDateTime slotEndDt = LocalDateTime.of(date, slotEnd);
 
-      boolean overlap = booked.stream()
-          .anyMatch(a -> slotStart.isBefore(a.getEndAt()) && slotEnd.isAfter(a.getStartAt()));
+      boolean isPast = slotStartDt.isBefore(now);
+      boolean overlaps = booked.stream().anyMatch(a -> slotStartDt.isBefore(ChronoLocalDateTime.from(a.getEndAt()))
+          && slotEndDt.isAfter(ChronoLocalDateTime.from(a.getStartAt())));
 
-      slots.add(new AvailableSlotDto(slotStart, slotEnd, !overlap));
-      cursor = cursor.plusMinutes(durationMin);
+      if (!isPast && !overlaps) {
+        slots.add(new AvailableSlotResponse(cursor, slotEnd, true));
+      }
+      cursor = slotEnd; // slot liền kề, không chồng lấn
     }
     return slots;
   }
@@ -144,5 +145,38 @@ public class AppointmentServiceImpl implements AppointmentService {
         .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
     appointment.setStatus(request.status());
     return appointmentMapper.toDto(appointmentRepository.save(appointment));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<AppointmentDto> getForManagement(
+      AppointmentStatus status,
+      LocalDate date,
+      Pageable pageable) {
+    return appointmentRepository.findAll(pageable).map(appointmentMapper::toDto);
+  }
+
+  private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<AppointmentDto> getForManagement(
+      LocalDate date,
+      AppointmentStatus status,
+      Pageable pageable) {
+    LocalDate selectedDate = date != null ? date : LocalDate.now(BUSINESS_ZONE);
+
+    Instant startAt = selectedDate
+        .atStartOfDay(BUSINESS_ZONE)
+        .toInstant();
+
+    Instant endAt = selectedDate
+        .plusDays(1)
+        .atStartOfDay(BUSINESS_ZONE)
+        .toInstant();
+
+    return appointmentRepository
+        .findForManagement(startAt, endAt, status, pageable)
+        .map(appointmentMapper::toDto);
   }
 }
