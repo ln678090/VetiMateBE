@@ -14,11 +14,7 @@ public record CustomUserDetails(
     String email,
     String password,
     String fullName,
-    // String avatarUrl,
-    // String coverUrl,
-    // String bio,
-    // String location,
-    // String websiteUrl,
+    String username,
     boolean isEnabled,
     Collection<? extends GrantedAuthority> authorities)
     implements UserDetails {
@@ -30,6 +26,7 @@ public record CustomUserDetails(
         user.getEmail(),
         user.getPassword(),
         user.getFullName(),
+        user.getUsername(),
         user.getEnabled() != null ? user.getIsEnabled().booleanValue() : false,
         user.getRoles().stream()
             .map(role -> new SimpleGrantedAuthority(role.getName()))

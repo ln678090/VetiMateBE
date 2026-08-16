@@ -1,5 +1,7 @@
 package com.graduation.project.catalog.service.Impl;
 
+import com.graduation.project.catalog.dto.req.CreateBrandRequest;
+import com.graduation.project.catalog.dto.req.CreateCategoryRequest;
 import com.graduation.project.catalog.dto.resp.BrandResp;
 import com.graduation.project.catalog.dto.resp.CategoryResp;
 import com.graduation.project.catalog.dto.resp.CategoryTreeResp;
@@ -9,6 +11,7 @@ import com.graduation.project.catalog.mapper.CatalogMapper;
 import com.graduation.project.catalog.repository.BrandRepository;
 import com.graduation.project.catalog.repository.CategoryRepository;
 import com.graduation.project.catalog.service.CatalogService;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,16 +34,13 @@ public class CatalogServiceImpl implements CatalogService {
 
   @Override
   public List<CategoryTreeResp> getCategoryTree() {
-    // 1 query duy nhất → build tree in-memory (tránh N+1)
     List<Category> all = categoryRepository.findAllActive();
 
-    // Group theo parent_id
     Map<UUID, List<Category>> byParent =
         all.stream()
             .filter(c -> c.getParent() != null)
             .collect(Collectors.groupingBy(c -> c.getParent().getId()));
 
-    // Lấy roots
     return all.stream()
         .filter(c -> c.getParent() == null)
         .sorted(Comparator.comparing(Category::getSortOrder).thenComparing(Category::getName))
@@ -93,5 +93,146 @@ public class CatalogServiceImpl implements CatalogService {
             .orElseThrow(
                 () -> new NoSuchElementException("Không tìm thấy thương hiệu với slug: " + slug));
     return catalogMapper.toBrandResp(brand);
+  }
+
+  // ===== Staff CRUD =====
+
+  @Transactional
+  @Override
+  public CategoryResp createCategory(CreateCategoryRequest request) {
+    String slug = toSlug(request.name());
+    int counter = 1;
+    String baseSlug = slug;
+    while (categoryRepository.existsBySlug(slug)) {
+      slug = baseSlug + "-" + counter++;
+    }
+
+    Category parent = null;
+    if (request.parentId() != null) {
+      parent = categoryRepository.findById(request.parentId())
+          .orElseThrow(() -> new NoSuchElementException("Danh mục cha không tồn tại"));
+    }
+
+    Category category = Category.builder()
+        .name(request.name())
+        .slug(slug)
+        .description(request.description())
+        .icon(request.icon())
+        .parent(parent)
+        .sortOrder(request.sortOrder() != null ? request.sortOrder() : 0)
+        .isActive(true)
+        .build();
+
+    return catalogMapper.toCategoryResp(categoryRepository.save(category));
+  }
+
+  @Transactional
+  @Override
+  public CategoryResp updateCategory(UUID id, CreateCategoryRequest request) {
+    Category category = categoryRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Danh mục không tồn tại"));
+
+    if (request.name() != null) {
+      category.setName(request.name());
+      String newSlug = toSlug(request.name());
+      if (!newSlug.equals(category.getSlug())) {
+        int counter = 1;
+        String baseSlug = newSlug;
+        while (categoryRepository.existsBySlug(newSlug) && !newSlug.equals(category.getSlug())) {
+          newSlug = baseSlug + "-" + counter++;
+        }
+        category.setSlug(newSlug);
+      }
+    }
+
+    if (request.description() != null) category.setDescription(request.description());
+    if (request.icon() != null) category.setIcon(request.icon());
+    if (request.sortOrder() != null) category.setSortOrder(request.sortOrder());
+    
+    if (request.parentId() != null) {
+      Category parent = categoryRepository.findById(request.parentId())
+          .orElseThrow(() -> new NoSuchElementException("Danh mục cha không tồn tại"));
+      category.setParent(parent);
+    } else {
+      category.setParent(null);
+    }
+
+    return catalogMapper.toCategoryResp(categoryRepository.save(category));
+  }
+
+  @Transactional
+  @Override
+  public void deleteCategory(UUID id) {
+    Category category = categoryRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Danh mục không tồn tại"));
+    category.setIsActive(false);
+    categoryRepository.save(category);
+  }
+
+  @Transactional
+  @Override
+  public BrandResp createBrand(CreateBrandRequest request) {
+    String slug = toSlug(request.name());
+    int counter = 1;
+    String baseSlug = slug;
+    while (brandRepository.existsBySlug(slug)) {
+      slug = baseSlug + "-" + counter++;
+    }
+
+    Brand brand = Brand.builder()
+        .name(request.name())
+        .slug(slug)
+        .description(request.description())
+        .logoUrl(request.logoUrl())
+        .isActive(true)
+        .build();
+
+    return catalogMapper.toBrandResp(brandRepository.save(brand));
+  }
+
+  @Transactional
+  @Override
+  public BrandResp updateBrand(UUID id, CreateBrandRequest request) {
+    Brand brand = brandRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Thương hiệu không tồn tại"));
+
+    if (request.name() != null) {
+      brand.setName(request.name());
+      String newSlug = toSlug(request.name());
+      if (!newSlug.equals(brand.getSlug())) {
+        int counter = 1;
+        String baseSlug = newSlug;
+        while (brandRepository.existsBySlug(newSlug) && !newSlug.equals(brand.getSlug())) {
+          newSlug = baseSlug + "-" + counter++;
+        }
+        brand.setSlug(newSlug);
+      }
+    }
+
+    if (request.description() != null) brand.setDescription(request.description());
+    if (request.logoUrl() != null) brand.setLogoUrl(request.logoUrl());
+
+    return catalogMapper.toBrandResp(brandRepository.save(brand));
+  }
+
+  @Transactional
+  @Override
+  public void deleteBrand(UUID id) {
+    Brand brand = brandRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Thương hiệu không tồn tại"));
+    brand.setIsActive(false);
+    brandRepository.save(brand);
+  }
+
+  private String toSlug(String name) {
+    String normalized = Normalizer.normalize(name, Normalizer.Form.NFD);
+    return normalized
+        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+        .replaceAll("đ", "d").replaceAll("Đ", "D")
+        .toLowerCase()
+        .replaceAll("[^a-z0-9\\s-]", "")
+        .replaceAll("[\\s]+", "-")
+        .replaceAll("-+", "-")
+        .replaceAll("^-|-$", "");
   }
 }

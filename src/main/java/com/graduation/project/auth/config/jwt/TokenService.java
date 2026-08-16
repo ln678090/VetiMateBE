@@ -1,6 +1,7 @@
 package com.graduation.project.auth.config.jwt;
 
 import com.graduation.project.auth.keys.RefreshTokenPrefix;
+import com.graduation.project.auth.config.custom.CustomUserDetails;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -23,15 +24,18 @@ public class TokenService {
   private final RedisTemplate<String, String> redisTemplate;
   private final RefreshTokenPrefix REFRESH_TOKEN_KEY_PREFIX;
 
-  public String generateAccessToken(UUID userId, String roles) {
+  public String generateAccessToken(CustomUserDetails userDetails, String roles) {
     Instant now = Instant.now();
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
             .issuer("connecthub-api")
             .issuedAt(now)
             .expiresAt(now.plus(15, ChronoUnit.MINUTES)) // Hết hạn sau 15 phút
-            .subject(userId.toString())
+            .subject(userDetails.id().toString())
             .claim("roles", roles)
+            .claim("email", userDetails.email())
+            .claim("username", userDetails.username())
+            .claim("fullName", userDetails.fullName())
             .build();
     return this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
@@ -51,25 +55,19 @@ public class TokenService {
     return this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
-  public String generateAccessTokenFromAuth(Authentication authentication, UUID userId) {
+  public String generateAccessTokenFromAuth(Authentication authentication) {
     String roles =
         authentication.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
             .collect(Collectors.joining(" "));
-    return generateAccessToken(userId, roles);
+    CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+    return generateAccessToken(userDetails, roles);
   }
 
   public String generateRefreshToken(UUID userId, String roles) {
     String refreshToken = UUID.randomUUID().toString();
     // Cấu trúc lưu: "ID|ROLES" (Ví dụ: "123e4567-e89b-12d3...|ROLE_USER")
-    String redisValue =
-        userId.toString()
-            + "|"
-            + roles
-            + "key"
-            + REFRESH_TOKEN_KEY_PREFIX.key()
-            + ":"
-            + refreshToken;
+    String redisValue = userId.toString() + "|" + roles;
 
     redisTemplate
         .opsForValue()

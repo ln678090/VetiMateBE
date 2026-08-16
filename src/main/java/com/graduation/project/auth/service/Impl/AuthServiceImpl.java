@@ -117,7 +117,7 @@ public class AuthServiceImpl implements AuthService {
             new UsernamePasswordAuthenticationToken(request.email(), request.password()));
     CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
     String roles = userDetails.getRolesAsString();
-    String accessToken = tokenService.generateAccessToken(userDetails.id(), roles);
+    String accessToken = tokenService.generateAccessToken(userDetails, roles);
     String refreshToken = tokenService.generateRefreshToken(userDetails.id(), roles);
     return new TokenPair(accessToken, refreshToken);
   }
@@ -126,11 +126,14 @@ public class AuthServiceImpl implements AuthService {
   @Override
   public TokenPair register(RegisterRequest request) {
     if (userRepository.existsByEmail(request.email())) {
-      throw new IllegalArgumentException("Email already exists ");
+      throw new IllegalArgumentException("Email này đã được sử dụng");
     }
-if (userRepository.existsByPhone(request.phone())) {
-  throw new IllegalArgumentException("Phone already exists ");
-}
+    if (userRepository.existsByPhone(request.phone())) {
+      throw new IllegalArgumentException("Số điện thoại này đã được sử dụng");
+    }
+    if (userRepository.existsByUsername(request.username())) {
+      throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
+    }
     Role userRole =
         roleRepository
             .findByName("ROLE_USER")
@@ -158,7 +161,7 @@ if (userRepository.existsByPhone(request.phone())) {
 
     CustomUserDetails userDetails = CustomUserDetails.fromUser(newUser);
     return new TokenPair(
-        tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString()),
+        tokenService.generateAccessToken(userDetails, userDetails.getRolesAsString()),
         tokenService.generateRefreshToken(userDetails.id(), userDetails.getRolesAsString()));
   }
 
@@ -168,11 +171,15 @@ if (userRepository.existsByPhone(request.phone())) {
     if (redisValue == null) {
       throw new BadCredentialsException("Refresh Token không hợp lệ hoặc đã hết hạn");
     }
-    // Tách ID và Roles từ chuỗi "ID|ROLES"
+    // Tách ID từ chuỗi "ID|ROLES"
     String[] parts = redisValue.split("\\|");
     UUID userId = UUID.fromString(parts[0]);
-    String roles = parts.length > 1 ? parts[1] : "";
-    String newAccessToken = tokenService.generateAccessToken(userId, roles);
+    
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new BadCredentialsException("User không tồn tại"));
+    CustomUserDetails userDetails = CustomUserDetails.fromUser(user);
+
+    String newAccessToken = tokenService.generateAccessToken(userDetails, userDetails.getRolesAsString());
     return new TokenPair(newAccessToken, oldRefreshToken);
   }
 
