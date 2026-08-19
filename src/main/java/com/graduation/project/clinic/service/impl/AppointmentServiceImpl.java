@@ -164,7 +164,9 @@ public class AppointmentServiceImpl implements AppointmentService {
       LocalDate date,
       AppointmentStatus status,
       Pageable pageable) {
-    LocalDate selectedDate = date != null ? date : LocalDate.now(BUSINESS_ZONE);
+    LocalDate selectedDate = date != null
+        ? date
+        : LocalDate.now(BUSINESS_ZONE);
 
     Instant startAt = selectedDate
         .atStartOfDay(BUSINESS_ZONE)
@@ -176,7 +178,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         .toInstant();
 
     return appointmentRepository
-        .findForManagement(startAt, endAt, status, pageable)
+        .findForManagement(
+            startAt,
+            endAt,
+            status,
+            pageable)
         .map(appointmentMapper::toDto);
   }
+
 }
