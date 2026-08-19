@@ -30,39 +30,11 @@ public class AppointmentController {
   private final AppointmentService appointmentService;
 
   // POST /api/clinic/appointments - Đặt lịch khám
-  @PostMapping
-  public ResponseEntity<ApiResp<AppointmentDto>> create(@Valid @RequestBody CreateAppointmentRequest request) {
-    AppointmentDto dto = appointmentService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResp.<AppointmentDto>builder().message("Đặt lịch khám thành công").data(dto).build());
-  }
 
   // GET /api/clinic/appointments/{id} - Chi tiết lịch khám
-  @GetMapping("/{id}")
-  public ResponseEntity<ApiResp<AppointmentDto>> getById(@PathVariable UUID id) {
-    return ResponseEntity.ok(
-        ApiResp.<AppointmentDto>builder().message("OK").data(appointmentService.getById(id)).build());
-  }
 
   // GET /api/clinic/appointments?customerId= - Lịch sử theo khách (paged)
-  @GetMapping
-  public ResponseEntity<ApiResp<Page<AppointmentDto>>> getByCustomer(
-      @RequestParam UUID customerId,
-      @PageableDefault(size = 20) Pageable pageable) {
-    Page<AppointmentDto> page = appointmentService.getByCustomer(customerId, pageable);
-    return ResponseEntity.ok(
-        ApiResp.<Page<AppointmentDto>>builder().message("OK").data(page).build());
-  }
-
   // PATCH /api/clinic/appointments/{id}/status - Đổi trạng thái lịch
-  @PatchMapping("/{id}/status")
-  public ResponseEntity<ApiResp<AppointmentDto>> updateStatus(
-      @PathVariable UUID id,
-      @Valid @RequestBody UpdateAppointmentStatusRequest request) {
-    AppointmentDto dto = appointmentService.updateStatus(id, request);
-    return ResponseEntity.ok(
-        ApiResp.<AppointmentDto>builder().message("Cập nhật trạng thái thành công").data(dto).build());
-  }
 
   @GetMapping("/api/clinic/services/{id}/available-slots")
   public ApiResp<Object> getAvailableSlots(
@@ -73,20 +45,76 @@ public class AppointmentController {
     return ApiResp.builder().data(slots).build(); // dùng đúng factory ApiResp của bạn
   }
 
+  @PostMapping
+  public ResponseEntity<ApiResp<AppointmentDto>> create(
+      @Valid @RequestBody CreateAppointmentRequest request) {
+    AppointmentDto appointment = appointmentService.create(request);
+
+    return ResponseEntity.status(HttpStatus.CREATED).body(
+        ApiResp.<AppointmentDto>builder()
+            .message("Đặt lịch khám thành công")
+            .data(appointment)
+            .build());
+  }
+
   @GetMapping("/management")
-  @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
-  public ApiResp<?> getForManagement(
+  // @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+  @PreAuthorize("""
+      hasAnyAuthority(
+          'ROLE_ADMIN',
+          'ROLE_MANAGER',
+          'ROLE_RECEPTIONIST'
+      )
+      """)
+  public ResponseEntity<ApiResp<Page<AppointmentDto>>> getForManagement(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
 
       @RequestParam(required = false) AppointmentStatus status,
 
-      Pageable pageable) {
-    return ApiResp.builder()
-        .data(
-            appointmentService.getForManagement(
-                date,
-                status,
-                pageable))
-        .build();
+      @PageableDefault(size = 20, sort = "startAt") Pageable pageable) {
+    Page<AppointmentDto> appointments = appointmentService.getForManagement(date, status, pageable);
+
+    return ResponseEntity.ok(
+        ApiResp.<Page<AppointmentDto>>builder()
+            .message("Lấy danh sách lịch khám thành công")
+            .data(appointments)
+            .build());
+  }
+
+  @GetMapping("/{id}")
+  public ResponseEntity<ApiResp<AppointmentDto>> getById(
+      @PathVariable UUID id) {
+    return ResponseEntity.ok(
+        ApiResp.<AppointmentDto>builder()
+            .message("OK")
+            .data(appointmentService.getById(id))
+            .build());
+  }
+
+  @GetMapping
+  public ResponseEntity<ApiResp<Page<AppointmentDto>>> getByCustomer(
+      @RequestParam UUID customerId,
+      @PageableDefault(size = 20) Pageable pageable) {
+    Page<AppointmentDto> appointments = appointmentService.getByCustomer(customerId, pageable);
+
+    return ResponseEntity.ok(
+        ApiResp.<Page<AppointmentDto>>builder()
+            .message("OK")
+            .data(appointments)
+            .build());
+  }
+
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+  public ResponseEntity<ApiResp<AppointmentDto>> updateStatus(
+      @PathVariable UUID id,
+      @Valid @RequestBody UpdateAppointmentStatusRequest request) {
+    AppointmentDto appointment = appointmentService.updateStatus(id, request);
+
+    return ResponseEntity.ok(
+        ApiResp.<AppointmentDto>builder()
+            .message("Cập nhật trạng thái thành công")
+            .data(appointment)
+            .build());
   }
 }
