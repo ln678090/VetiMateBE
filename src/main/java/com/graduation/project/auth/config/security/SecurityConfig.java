@@ -106,14 +106,32 @@ public class SecurityConfig {
   }
 
   @Bean
-  public org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter() {
-    org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
-    grantedAuthoritiesConverter.setAuthorityPrefix(""); 
-    grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
+  public org.springframework.core.convert.converter.Converter<org.springframework.security.oauth2.jwt.Jwt, org.springframework.security.authentication.AbstractAuthenticationToken> jwtAuthenticationConverter() {
+    return jwt -> {
+      // Extract roles from the "roles" claim (space-separated string)
+      String rolesStr = jwt.getClaimAsString("roles");
+      java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities = new java.util.ArrayList<>();
+      if (rolesStr != null && !rolesStr.isBlank()) {
+        for (String role : rolesStr.split("\\s+")) {
+          authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(role));
+        }
+      }
 
-    org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
-    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-    return jwtAuthenticationConverter;
+      // Build CustomUserDetails from JWT claims
+      CustomUserDetails userDetails = new CustomUserDetails(
+          java.util.UUID.fromString(jwt.getSubject()),
+          jwt.getClaimAsString("email"),
+          "", // password not needed for JWT auth
+          jwt.getClaimAsString("fullName"),
+          jwt.getClaimAsString("username"),
+          true,
+          authorities
+      );
+
+      return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+          userDetails, jwt, authorities
+      );
+    };
   }
 
   @Bean

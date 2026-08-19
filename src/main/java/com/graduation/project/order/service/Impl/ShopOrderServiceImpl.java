@@ -65,15 +65,78 @@ public class ShopOrderServiceImpl implements ShopOrderService {
         .orElseThrow(() -> new NoSuchElementException("Không tìm thấy đơn hàng: " + id));
     
     OrderStatus oldStatus = order.getStatus();
-    order.setStatus(request.status());
+    OrderStatus newStatus = request.status();
     
-    if (request.status() == OrderStatus.CANCELLED && oldStatus != OrderStatus.CANCELLED) {
+    if (newStatus == OrderStatus.CANCELLED) {
+      throw new IllegalArgumentException("Nhân viên không được phép hủy đơn hàng. Chỉ khách hàng mới có thể hủy đơn.");
+    }
+    
+    if (newStatus.ordinal() <= oldStatus.ordinal()) {
+      throw new IllegalArgumentException("Không thể quay lại trạng thái trước đó.");
+    }
+    
+    if (newStatus.ordinal() - oldStatus.ordinal() > 1 && oldStatus != OrderStatus.PENDING) { // Actually, let's just strictly enforce old+1 == new
+      // Wait, if old is 0, new must be 1.
+    }
+    
+    if (newStatus.ordinal() != oldStatus.ordinal() + 1) {
+       throw new IllegalArgumentException("Phải cập nhật tuần tự từng trạng thái, không được nhảy cóc.");
+    }
+
+    if (newStatus == OrderStatus.CONFIRMED && oldStatus == OrderStatus.PENDING) {
+      // Deduct stock
       for (var item : order.getItems()) {
         var product = item.getProduct();
-        product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+        if (product.getStockQuantity() < item.getQuantity()) {
+          throw new IllegalArgumentException("Sản phẩm " + product.getName() + " không đủ số lượng trong kho (" + product.getStockQuantity() + " còn lại). Không thể xác nhận đơn.");
+        }
+        product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
         productRepository.save(product);
       }
     }
+
+    order.setStatus(newStatus);
+    
+    return orderMapper.toResp(orderRepository.save(order));
+  }
+
+  @Transactional
+  @Override
+  public ShopOrderResp approveCancel(UUID id) {
+    ShopOrder order = orderRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy đơn hàng: " + id));
+        
+    if (!order.isCancellationRequested()) {
+        throw new IllegalArgumentException("Đơn hàng này không có yêu cầu hủy");
+    }
+    
+    // Nếu đơn hàng đã từng được xác nhận (bất kỳ trạng thái nào lớn hơn PENDING), tồn kho đã bị trừ
+    if (order.getStatus().ordinal() > OrderStatus.PENDING.ordinal()) {
+        for (var item : order.getItems()) {
+            var product = item.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+            productRepository.save(product);
+        }
+    }
+    
+    order.setStatus(OrderStatus.CANCELLED);
+    order.setCancellationRequested(false);
+    
+    return orderMapper.toResp(orderRepository.save(order));
+  }
+
+  @Transactional
+  @Override
+  public ShopOrderResp rejectCancel(UUID id) {
+    ShopOrder order = orderRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy đơn hàng: " + id));
+        
+    if (!order.isCancellationRequested()) {
+        throw new IllegalArgumentException("Đơn hàng này không có yêu cầu hủy");
+    }
+    
+    order.setCancellationRequested(false);
+    // Keep the status as is
     
     return orderMapper.toResp(orderRepository.save(order));
   }
@@ -100,14 +163,11 @@ public class ShopOrderServiceImpl implements ShopOrderService {
       com.graduation.project.product.entity.Product product = productRepository.findById(itemReq.productId())
           .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
           
-      if (product.getStockQuantity() < itemReq.quantity()) {
-        throw new IllegalArgumentException("Sản phẩm " + product.getName() + " không đủ số lượng trong kho");
-      }
-      
-      product.setStockQuantity(product.getStockQuantity() - itemReq.quantity());
-      productRepository.save(product);
+      // Note: Stock deduction is deferred to when the order is CONFIRMED
       
       orderItem.setProduct(product);
+      orderItem.setProductName(product.getName());
+      orderItem.setProductImage(product.getImageUrl());
       orderItem.setQuantity(itemReq.quantity());
       orderItem.setUnitPrice(product.getPrice()); // Always use real DB price
       orderItem.setTotal(product.getPrice().multiply(java.math.BigDecimal.valueOf(itemReq.quantity())));
@@ -138,5 +198,83 @@ public class ShopOrderServiceImpl implements ShopOrderService {
         result.getNumber(),
         result.getSize(),
         result.getTotalPages());
+  }
+
+  @Transactional
+  @Override
+  public ShopOrderResp cancelOrder(UUID orderId, UUID userId, String reason) {
+    ShopOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy đơn hàng: " + orderId));
+        
+    if (!order.getUser().getId().equals(userId)) {
+        throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền hủy đơn hàng này");
+    }
+    
+    if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
+        throw new IllegalArgumentException("Không thể hủy đơn hàng ở trạng thái này");
+    }
+    
+    if (order.getStatus() == OrderStatus.PENDING) {
+        // Hủy ngay lập tức
+        order.setStatus(OrderStatus.CANCELLED);
+    } else {
+        // Gửi yêu cầu hủy
+        order.setCancellationRequested(true);
+        order.setCancellationReason(reason);
+    }
+    
+    return orderMapper.toResp(orderRepository.save(order));
+  }
+
+  @Transactional
+  @Override
+  public ShopOrderResp createPosOrder(com.graduation.project.order.dto.req.CreatePosOrderRequest request, UUID staffId) {
+    ShopOrder order = new ShopOrder();
+    order.setOrderCode("POS-" + System.currentTimeMillis());
+    // POS orders are linked to the staff who created them
+    order.setUser(userRepository.getReferenceById(staffId));
+    // POS orders are completed immediately
+    order.setStatus(OrderStatus.COMPLETED);
+    order.setRecipientName(request.customerName() != null ? request.customerName() : "Khách lẻ");
+    order.setRecipientPhone(request.customerPhone() != null ? request.customerPhone() : "N/A");
+    order.setShippingAddress("Mua tại quầy");
+    order.setPaymentMethod(request.paymentMethod() != null ? request.paymentMethod() : "CASH");
+    order.setNote(request.note());
+    // No shipping fee for POS
+    order.setShippingFee(java.math.BigDecimal.ZERO);
+
+    java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
+
+    for (com.graduation.project.order.dto.req.PosOrderItemRequest itemReq : request.items()) {
+      com.graduation.project.product.entity.Product product = productRepository.findById(itemReq.productId())
+          .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm: " + itemReq.productId()));
+
+      // Check stock
+      if (product.getStockQuantity() < itemReq.quantity()) {
+        throw new IllegalArgumentException(
+            "Sản phẩm \"" + product.getName() + "\" không đủ tồn kho. Còn lại: " + product.getStockQuantity());
+      }
+
+      // Deduct stock immediately for POS
+      product.setStockQuantity(product.getStockQuantity() - itemReq.quantity());
+      productRepository.save(product);
+
+      com.graduation.project.order.entity.ShopOrderItem orderItem = new com.graduation.project.order.entity.ShopOrderItem();
+      orderItem.setOrder(order);
+      orderItem.setProduct(product);
+      orderItem.setProductName(product.getName());
+      orderItem.setProductImage(product.getImageUrl());
+      orderItem.setQuantity(itemReq.quantity());
+      orderItem.setUnitPrice(product.getPrice());
+      orderItem.setTotal(product.getPrice().multiply(java.math.BigDecimal.valueOf(itemReq.quantity())));
+
+      subtotal = subtotal.add(orderItem.getTotal());
+      order.getItems().add(orderItem);
+    }
+
+    order.setSubtotal(subtotal);
+    order.setTotalAmount(subtotal); // No shipping fee
+
+    return orderMapper.toResp(orderRepository.save(order));
   }
 }

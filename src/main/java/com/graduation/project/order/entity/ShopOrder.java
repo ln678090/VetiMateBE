@@ -60,6 +60,13 @@ public class ShopOrder {
   @Builder.Default
   private BigDecimal shippingFee = BigDecimal.ZERO;
 
+  @Column(name = "cancellation_requested", nullable = false)
+  @Builder.Default
+  private boolean cancellationRequested = false;
+
+  @Column(name = "cancellation_reason", length = 255)
+  private String cancellationReason;
+
   @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
   @Builder.Default
   private BigDecimal totalAmount = BigDecimal.ZERO;

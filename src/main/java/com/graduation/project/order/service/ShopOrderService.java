@@ -13,8 +13,16 @@ public interface ShopOrderService {
 
   ShopOrderResp updateOrderStatus(UUID id, UpdateOrderStatusRequest request);
 
+  ShopOrderResp approveCancel(UUID id);
+  ShopOrderResp rejectCancel(UUID id);
+
   // Customer Methods
   ShopOrderResp createOrder(com.graduation.project.order.dto.req.CreateOrderRequest request, UUID userId);
 
   ShopOrderListResp getUserOrders(UUID userId, int page, int size);
+  
+  ShopOrderResp cancelOrder(UUID orderId, UUID userId, String reason);
+
+  // POS (Point of Sale) - Bán hàng tại quầy
+  ShopOrderResp createPosOrder(com.graduation.project.order.dto.req.CreatePosOrderRequest request, UUID staffId);
 }

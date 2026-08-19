@@ -53,4 +53,14 @@ public class OrderController {
     // In a real app we should verify the order belongs to the user
     return ResponseEntity.ok(shopOrderService.getOrderById(id));
   }
+
+  @PostMapping("/{id}/cancel")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<ShopOrderResp> cancelOrder(
+      @PathVariable UUID id,
+      @RequestBody(required = false) java.util.Map<String, String> requestBody,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    String reason = requestBody != null ? requestBody.get("reason") : null;
+    return ResponseEntity.ok(shopOrderService.cancelOrder(id, userDetails.id(), reason));
+  }
 }

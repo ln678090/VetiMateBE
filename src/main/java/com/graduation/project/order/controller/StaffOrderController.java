@@ -1,6 +1,8 @@
 package com.graduation.project.order.controller;
 
+import com.graduation.project.auth.config.custom.CustomUserDetails;
 import com.graduation.project.common.resp.ApiResp;
+import com.graduation.project.order.dto.req.CreatePosOrderRequest;
 import com.graduation.project.order.dto.req.UpdateOrderStatusRequest;
 import com.graduation.project.order.dto.resp.ShopOrderListResp;
 import com.graduation.project.order.dto.resp.ShopOrderResp;
@@ -10,8 +12,10 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -58,4 +62,34 @@ public class StaffOrderController {
         .data(resp)
         .build());
   }
+
+  @PostMapping("/{id}/cancel/approve")
+  public ResponseEntity<ApiResp<ShopOrderResp>> approveCancel(@PathVariable UUID id) {
+    ShopOrderResp resp = orderService.approveCancel(id);
+    return ResponseEntity.ok(ApiResp.<ShopOrderResp>builder()
+        .message("Đã chấp nhận yêu cầu hủy đơn hàng")
+        .data(resp)
+        .build());
+  }
+
+  @PostMapping("/{id}/cancel/reject")
+  public ResponseEntity<ApiResp<ShopOrderResp>> rejectCancel(@PathVariable UUID id) {
+    ShopOrderResp resp = orderService.rejectCancel(id);
+    return ResponseEntity.ok(ApiResp.<ShopOrderResp>builder()
+        .message("Đã từ chối yêu cầu hủy đơn hàng")
+        .data(resp)
+        .build());
+  }
+
+  @PostMapping("/pos")
+  public ResponseEntity<ApiResp<ShopOrderResp>> createPosOrder(
+      @Valid @RequestBody CreatePosOrderRequest request,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    ShopOrderResp resp = orderService.createPosOrder(request, userDetails.id());
+    return ResponseEntity.ok(ApiResp.<ShopOrderResp>builder()
+        .message("Thanh toán tại quầy thành công")
+        .data(resp)
+        .build());
+  }
 }
+

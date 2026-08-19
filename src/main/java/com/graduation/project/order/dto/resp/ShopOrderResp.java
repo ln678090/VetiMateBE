@@ -22,4 +22,6 @@ public record ShopOrderResp(
     String note,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
+    boolean cancellationRequested,
+    String cancellationReason,
     List<ShopOrderItemResp> items) {}
