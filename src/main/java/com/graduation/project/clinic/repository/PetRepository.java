@@ -1,9 +1,13 @@
 package com.graduation.project.clinic.repository;
 
 import com.graduation.project.clinic.entity.Pet;
+
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,6 +28,22 @@ public interface PetRepository extends JpaRepository<Pet, UUID> {
   List<Pet> findByCustomerIdAndDeletedAtIsNull(UUID customerId);
 
   Optional<Pet> findByIdAndDeletedAtIsNull(UUID id);
+
+  //
+  // @Lock(LockModeType.PESSIMISTIC_WRITE)
+  // @Query(" select pet from Pet pet where pet.id = :petId and pet.deletedAt is
+  // null ")
+  // Optional<Pet> findByIdForUpdate(@Param("petId") UUID petId);
+  //
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("""
+      select pet
+      from Pet pet
+      where pet.id = :petId
+        and pet.deletedAt is null
+      """)
+  Optional<Pet> findByIdForUpdate(
+      @Param("petId") UUID petId);
 
   // Query để đếm pet active của customer
   long countByCustomerIdAndDeletedAtIsNull(UUID customerId);

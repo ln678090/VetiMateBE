@@ -1,5 +1,6 @@
 package com.graduation.project.clinic.entity;
 
+import com.graduation.project.clinic.enums.PetHealthStatus;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,6 +8,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -58,6 +60,15 @@ public class Pet {
   private Instant updatedAt;
   @Column(name = "deleted_at")
   private Instant deletedAt;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "current_health_status", length = 30)
+  private PetHealthStatus currentHealthStatus;
+
+  @Column(name = "current_health_note", columnDefinition = "TEXT")
+  private String currentHealthNote;
+
+  @Column(name = "last_examined_at")
+  private Instant lastExaminedAt;
 
   // Getter/Setter (hoặc dùng @Data của Lombok)
   public Instant getDeletedAt() {
@@ -83,5 +94,28 @@ public class Pet {
   @PreUpdate
   void onUpdate() {
     this.updatedAt = Instant.now();
+  }
+
+  public void updateHealthSnapshot(PetHealthStatus healthStatus, BigDecimal weightKg, String healthNote,
+      Instant examinedAt) {
+    this.currentHealthStatus = Objects.requireNonNull(healthStatus, "healthStatus");
+
+    if (weightKg != null) {
+      this.weightKg = weightKg;
+    }
+
+    this.currentHealthNote = normalizeNullable(healthNote);
+    this.lastExaminedAt = Objects.requireNonNull(examinedAt, "examinedAt");
+
+  }
+
+  private String normalizeNullable(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    String normalized = value.trim();
+    return normalized.isEmpty() ? null : normalized;
+
   }
 }

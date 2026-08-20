@@ -1,7 +1,9 @@
 
 package com.graduation.project.staff.service.impl;
 
+import com.graduation.project.auth.service.RoleAssignmentService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
+import com.graduation.project.staff.dto.EligibleUserResponse;
 import com.graduation.project.staff.dto.StaffResponse;
 import com.graduation.project.staff.dto.req.CreateStaffRequest;
 import com.graduation.project.staff.dto.req.UpdateStaffRequest;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -28,24 +31,47 @@ public class StaffServiceImpl implements StaffService {
 
   private final StaffRepository staffRepository;
   private final UserRepository userRepository;
+  private final RoleAssignmentService roleAssignmentService;
 
   @Override
   @Transactional
-  public StaffResponse create(CreateStaffRequest request) {
-    validateUserLinkAvailable(request.userId(), null);
+  public StaffResponse create(
+      CreateStaffRequest request,
+      UUID actorUserId) {
+    validateUserLinkAvailable(request.userId());
+
+    User user = findUser(request.userId());
 
     Staff staff = new Staff();
-    staff.setUser(resolveUser(request.userId()));
-    staff.setFullName(normalizeRequired(request.fullName()));
-    staff.setPhone(normalizeNullable(request.phone()));
+    staff.setUser(user);
+
+    /*
+     * User là nguồn dữ liệu identity duy nhất.
+     * Staff chỉ lưu snapshot để tương thích schema V10.
+     */
+    staff.setFullName(user.getFullName());
+    staff.setPhone(user.getPhone());
+
     staff.setRoleType(request.roleType());
-    staff.setLicenseNumber(
-        normalizeNullable(request.licenseNumber()));
-    staff.setBaseSalary(request.baseSalary());
-    staff.setCommissionRate(request.commissionRate());
+    staff.setLicenseNumber(null);
+    staff.setBaseSalary(BigDecimal.ZERO);
+    staff.setCommissionRate(BigDecimal.ZERO);
     staff.setActive(true);
 
-    Staff savedStaff = staffRepository.save(staff);
+    /*
+     * Flush trước khi gọi RoleAssignmentService để các kiểm tra
+     * Staff/User trong service phân quyền nhìn thấy Staff vừa tạo.
+     *
+     * Nếu phân quyền hoặc audit thất bại, toàn bộ transaction
+     * vẫn rollback, bao gồm bản ghi Staff vừa insert.
+     */
+    Staff savedStaff = staffRepository.saveAndFlush(staff);
+
+    roleAssignmentService.assignStaffRole(
+        user.getId(),
+        savedStaff.getRoleType(),
+        actorUserId,
+        request.reason());
 
     return toResponse(savedStaff);
   }
@@ -54,33 +80,59 @@ public class StaffServiceImpl implements StaffService {
   @Transactional
   public StaffResponse update(
       UUID staffId,
-      UpdateStaffRequest request) {
+      UpdateStaffRequest request,
+      UUID actorUserId) {
     Staff staff = findStaff(staffId);
+    User linkedUser = requireLinkedUser(staff);
 
-    validateUserLinkAvailable(
-        request.userId(),
-        staffId);
+    /*
+     * Deactivate phải đi qua command riêng để chắc chắn workforce
+     * role cũng được thu hồi trong cùng transaction.
+     */
+    if (!request.active()) {
+      throw new StaffConflictException(
+          "Hãy dùng chức năng ngừng hoạt động nhân viên");
+    }
 
-    staff.setUser(resolveUser(request.userId()));
-    staff.setFullName(normalizeRequired(request.fullName()));
-    staff.setPhone(normalizeNullable(request.phone()));
+    boolean roleChanged = staff.getRoleType() != request.roleType();
+
+    boolean reactivating = !staff.isActive();
+
+    if (!roleChanged && !reactivating) {
+      return toResponse(staff);
+    }
+
+    /*
+     * Cập nhật Staff trước để RoleAssignmentService có thể xác minh:
+     *
+     * active Staff.roleType phải khớp với workforce role được cấp.
+     */
     staff.setRoleType(request.roleType());
-    staff.setLicenseNumber(
-        normalizeNullable(request.licenseNumber()));
-    staff.setBaseSalary(request.baseSalary());
-    staff.setCommissionRate(request.commissionRate());
-    staff.setActive(request.active());
+    staff.setActive(true);
 
-    Staff savedStaff = staffRepository.save(staff);
+    Staff savedStaff = staffRepository.saveAndFlush(staff);
+
+    /*
+     * Service phân quyền phải:
+     * - từ chối tài khoản ROLE_ADMIN;
+     * - xóa ROLE_USER và workforce role cũ;
+     * - cấp đúng workforce role mới;
+     * - không nhận role tùy ý từ client;
+     * - ghi audit;
+     * - thu hồi refresh session.
+     */
+    roleAssignmentService.assignStaffRole(
+        linkedUser.getId(),
+        savedStaff.getRoleType(),
+        actorUserId,
+        request.reason());
 
     return toResponse(savedStaff);
   }
 
   @Override
   public StaffResponse getById(UUID staffId) {
-    Staff staff = findStaff(staffId);
-
-    return toResponse(staff);
+    return toResponse(findStaff(staffId));
   }
 
   @Override
@@ -89,9 +141,7 @@ public class StaffServiceImpl implements StaffService {
       StaffRoleType roleType,
       Boolean active,
       Pageable pageable) {
-    String normalizedKeyword = keyword == null
-        ? ""
-        : keyword.trim().toLowerCase(Locale.ROOT);
+    String normalizedKeyword = normalizeKeyword(keyword);
 
     boolean hasNoFilters = normalizedKeyword.isEmpty()
         && roleType == null
@@ -110,15 +160,52 @@ public class StaffServiceImpl implements StaffService {
 
   @Override
   @Transactional
-  public void deactivate(UUID staffId) {
+  public StaffResponse deactivate(
+      UUID staffId,
+      String reason,
+      UUID actorUserId) {
     Staff staff = findStaff(staffId);
+    User linkedUser = requireLinkedUser(staff);
 
     if (!staff.isActive()) {
-      return;
+      return toResponse(staff);
     }
 
+    /*
+     * Đổi trạng thái Staff trước để không tồn tại active Staff
+     * sau khi workforce role đã bị thu hồi.
+     */
     staff.setActive(false);
-    staffRepository.save(staff);
+
+    Staff savedStaff = staffRepository.saveAndFlush(staff);
+
+    /*
+     * Chỉ thu hồi workforce roles.
+     * Không xóa User, không cấp ROLE_USER ngầm và không đụng ROLE_ADMIN.
+     */
+    roleAssignmentService.revokeStaffRoles(
+        linkedUser.getId(),
+        actorUserId,
+        reason);
+
+    return toResponse(savedStaff);
+  }
+
+  @Override
+  public Page<EligibleUserResponse> searchEligibleUsers(
+      String keyword,
+      Pageable pageable) {
+    String normalizedKeyword = normalizeKeyword(keyword);
+
+    /*
+     * Repository phải loại:
+     * - User đã liên kết với Staff;
+     * - User có ROLE_ADMIN;
+     * - User bị disabled nếu chính sách onboarding yêu cầu.
+     */
+    return userRepository
+        .findEligibleForStaff(normalizedKeyword, pageable)
+        .map(this::toEligibleUserResponse);
   }
 
   private Staff findStaff(UUID staffId) {
@@ -130,9 +217,10 @@ public class StaffServiceImpl implements StaffService {
                     + staffId));
   }
 
-  private User resolveUser(UUID userId) {
+  private User findUser(UUID userId) {
     if (userId == null) {
-      return null;
+      throw new StaffConflictException(
+          "Tài khoản liên kết nhân viên là bắt buộc");
     }
 
     return userRepository
@@ -143,35 +231,43 @@ public class StaffServiceImpl implements StaffService {
                     + userId));
   }
 
-  private void validateUserLinkAvailable(
-      UUID userId,
-      UUID currentStaffId) {
+  private User requireLinkedUser(Staff staff) {
+    User user = staff.getUser();
+
+    if (user == null) {
+      throw new StaffConflictException(
+          "Nhân viên chưa liên kết với tài khoản");
+    }
+
+    return user;
+  }
+
+  private void validateUserLinkAvailable(UUID userId) {
     if (userId == null) {
-      return;
+      throw new StaffConflictException(
+          "Tài khoản liên kết nhân viên là bắt buộc");
     }
 
-    boolean linkedToAnotherStaff;
-
-    if (currentStaffId == null) {
-      linkedToAnotherStaff = staffRepository.existsByUserId(userId);
-    } else {
-      linkedToAnotherStaff = staffRepository.existsByUserIdAndIdNot(
-          userId,
-          currentStaffId);
-    }
-
-    if (linkedToAnotherStaff) {
+    if (staffRepository.existsByUserId(userId)) {
       throw new StaffConflictException(
           "Tài khoản đã được liên kết với nhân viên khác");
     }
   }
 
-  private StaffResponse toResponse(Staff staff) {
-    UUID userId = null;
-
-    if (staff.getUser() != null) {
-      userId = staff.getUser().getId();
+  private String normalizeKeyword(String keyword) {
+    if (keyword == null) {
+      return "";
     }
+
+    return keyword
+        .trim()
+        .toLowerCase(Locale.ROOT);
+  }
+
+  private StaffResponse toResponse(Staff staff) {
+    UUID userId = staff.getUser() == null
+        ? null
+        : staff.getUser().getId();
 
     return new StaffResponse(
         staff.getId(),
@@ -186,21 +282,12 @@ public class StaffServiceImpl implements StaffService {
         staff.getCreatedAt());
   }
 
-  private String normalizeRequired(String value) {
-    return value.trim();
-  }
-
-  private String normalizeNullable(String value) {
-    if (value == null) {
-      return null;
-    }
-
-    String normalized = value.trim();
-
-    if (normalized.isEmpty()) {
-      return null;
-    }
-
-    return normalized;
+  private EligibleUserResponse toEligibleUserResponse(User user) {
+    return new EligibleUserResponse(
+        user.getId(),
+        user.getUsername(),
+        user.getFullName(),
+        user.getEmail(),
+        user.getPhone());
   }
 }

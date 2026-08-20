@@ -4,16 +4,67 @@ package com.graduation.project.clinic.examination.repository;
 import com.graduation.project.clinic.examination.entity.MedicalRecord;
 import com.graduation.project.clinic.examination.entity.MedicalRecordStatus;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UUID> {
+  Optional<MedicalRecord> findByAppointmentId(UUID appointmentId);
+
+  @Query("""
+      select medicalRecord
+      from MedicalRecord medicalRecord
+      join fetch medicalRecord.appointment appointment
+      join fetch medicalRecord.pet pet
+      join fetch medicalRecord.doctor doctor
+      left join fetch doctor.user
+      where medicalRecord.id = :medicalRecordId
+      """)
+  Optional<MedicalRecord> findByIdFull(
+      @Param("medicalRecordId") UUID medicalRecordId);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("""
+      select medicalRecord
+      from MedicalRecord medicalRecord
+      join fetch medicalRecord.appointment appointment
+      join fetch medicalRecord.pet pet
+      join fetch medicalRecord.doctor doctor
+      left join fetch doctor.user
+      where medicalRecord.id = :medicalRecordId
+      """)
+  Optional<MedicalRecord> findByIdForUpdate(
+      @Param("medicalRecordId") UUID medicalRecordId);
+
+  @EntityGraph(attributePaths = {
+      "appointment",
+      "pet",
+      "doctor",
+      "doctor.user"
+  })
+  @Query(value = """
+      select medicalRecord
+      from MedicalRecord medicalRecord
+      where medicalRecord.doctor.user.id = :doctorUserId
+        and medicalRecord.status = :status
+      """, countQuery = """
+      select count(medicalRecord)
+      from MedicalRecord medicalRecord
+      where medicalRecord.doctor.user.id = :doctorUserId
+        and medicalRecord.status = :status
+      """)
+  Page<MedicalRecord> findHistoryByDoctorUserId(
+      @Param("doctorUserId") UUID doctorUserId,
+      @Param("status") MedicalRecordStatus status,
+      Pageable pageable);
 
   @EntityGraph(attributePaths = {
       "appointment",
@@ -45,4 +96,16 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UU
       UUID userId,
       MedicalRecordStatus status,
       Pageable pageable);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("""
+      select medicalRecord
+      from MedicalRecord medicalRecord
+      join fetch medicalRecord.appointment appointment
+      join fetch medicalRecord.pet pet
+      join fetch medicalRecord.doctor doctor
+      where medicalRecord.id = :medicalRecordId
+      """)
+  Optional<MedicalRecord> findDetailedByIdForUpdate(
+      @Param("medicalRecordId") UUID medicalRecordId);
 }

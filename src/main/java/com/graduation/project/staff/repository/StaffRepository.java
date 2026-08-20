@@ -45,5 +45,5 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
 
   Optional<Staff> findByUserIdAndRoleTypeAndActiveTrue(
       UUID userId,
-      String roleType);
+      StaffRoleType roleType);
 }

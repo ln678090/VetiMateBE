@@ -1,6 +1,7 @@
 
 package com.graduation.project.staff.service;
 
+import com.graduation.project.staff.dto.EligibleUserResponse;
 import com.graduation.project.staff.dto.StaffResponse;
 import com.graduation.project.staff.dto.req.CreateStaffRequest;
 import com.graduation.project.staff.dto.req.UpdateStaffRequest;
@@ -12,11 +13,14 @@ import java.util.UUID;
 
 public interface StaffService {
 
-  StaffResponse create(CreateStaffRequest request);
+  StaffResponse create(
+      CreateStaffRequest request,
+      UUID actorUserId);
 
   StaffResponse update(
       UUID staffId,
-      UpdateStaffRequest request);
+      UpdateStaffRequest request,
+      UUID actorUserId);
 
   StaffResponse getById(UUID staffId);
 
@@ -26,5 +30,12 @@ public interface StaffService {
       Boolean active,
       Pageable pageable);
 
-  void deactivate(UUID staffId);
+  StaffResponse deactivate(
+      UUID staffId,
+      String reason,
+      UUID actorUserId);
+
+  Page<EligibleUserResponse> searchEligibleUsers(
+      String keyword,
+      Pageable pageable);
 }
