@@ -33,7 +33,7 @@ public class Medicine {
   @Column(nullable = false, length = 200)
   private String name;
 
-  @Column(length = 50)
+  @Column(unique = true, length = 50)
   private String sku;
 
   @Column(nullable = false, length = 30)

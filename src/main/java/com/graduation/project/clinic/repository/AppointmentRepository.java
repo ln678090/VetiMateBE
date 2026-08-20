@@ -2,9 +2,14 @@ package com.graduation.project.clinic.repository;
 
 import com.graduation.project.clinic.entity.Appointment;
 import com.graduation.project.clinic.entity.AppointmentStatus;
+
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -71,6 +76,28 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("end") Instant end // ← Instant
   );
 
+  // @Query(value = """
+  // SELECT appointment
+  // FROM Appointment appointment
+  // JOIN FETCH appointment.customer
+  // JOIN FETCH appointment.pet
+  // JOIN FETCH appointment.service
+  // WHERE appointment.startAt >= :startAt
+  // AND appointment.startAt < :endAt
+  // AND (:status IS NULL OR appointment.status = :status)
+  // """, countQuery = """
+  // SELECT COUNT(appointment)
+  // FROM Appointment appointment
+  // WHERE appointment.startAt >= :startAt
+  // AND appointment.startAt < :endAt
+  // AND (:status IS NULL OR appointment.status = :status)
+  // """)
+  // Page<Appointment> findForManagement(
+  // @Param("startAt") Instant startAt,
+  // @Param("endAt") Instant endAt,
+  // @Param("status") AppointmentStatus status,
+  // Pageable pageable);
+
   @Query(value = """
       SELECT appointment
       FROM Appointment appointment
@@ -92,4 +119,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("endAt") Instant endAt,
       @Param("status") AppointmentStatus status,
       Pageable pageable);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @EntityGraph(attributePaths = { "customer", "pet", "service" })
+  @Query("""
+      SELECT appointment
+      FROM Appointment appointment
+      WHERE appointment.id = :appointmentId
+      """)
+  Optional<Appointment> findByIdForUpdate(
+      @Param("appointmentId") UUID appointmentId);
+
 }
