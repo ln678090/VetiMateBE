@@ -6,6 +6,8 @@ import jakarta.persistence.LockModeType;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -27,8 +29,6 @@ public interface PetRepository extends JpaRepository<Pet, UUID> {
   // Thêm method để chỉ lấy pet chưa bị xóa:
   List<Pet> findByCustomerIdAndDeletedAtIsNull(UUID customerId);
 
-  Optional<Pet> findByIdAndDeletedAtIsNull(UUID id);
-
   //
   // @Lock(LockModeType.PESSIMISTIC_WRITE)
   // @Query(" select pet from Pet pet where pet.id = :petId and pet.deletedAt is
@@ -47,4 +47,28 @@ public interface PetRepository extends JpaRepository<Pet, UUID> {
 
   // Query để đếm pet active của customer
   long countByCustomerIdAndDeletedAtIsNull(UUID customerId);
+
+  @EntityGraph(attributePaths = "customer")
+  Page<Pet> findAll(
+      Specification<Pet> specification,
+      Pageable pageable);
+
+  @EntityGraph(attributePaths = "customer")
+  Optional<Pet> findByIdAndDeletedAtIsNull(UUID id);
+
+  @EntityGraph(attributePaths = "customer")
+  Optional<Pet> findByIdAndCustomerIdAndDeletedAtIsNull(
+      UUID id,
+      UUID customerId);
+
+  @EntityGraph(attributePaths = "customer")
+  Page<Pet> findByCustomerIdAndDeletedAtIsNull(
+      UUID customerId,
+      Pageable pageable);
+
+  @EntityGraph(attributePaths = "customer")
+  Optional<Pet> findByIdAndCustomerId(
+      UUID id,
+      UUID customerId);
+
 }
