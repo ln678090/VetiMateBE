@@ -2,6 +2,7 @@ package com.graduation.project.clinic.examination.entity;
 
 import com.graduation.project.clinic.entity.Appointment;
 import com.graduation.project.clinic.entity.Pet;
+import com.graduation.project.clinic.enums.PetHealthStatus;
 import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.Column;
@@ -60,6 +61,10 @@ public class MedicalRecord {
 
   @Column(name = "weight_kg", precision = 6, scale = 2)
   private BigDecimal weightKg;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "health_status", nullable = false, length = 30)
+  private PetHealthStatus healthStatus = PetHealthStatus.MONITORING;
 
   @Column(name = "doctor_note", columnDefinition = "TEXT")
   private String doctorNote;

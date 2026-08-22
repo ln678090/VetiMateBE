@@ -57,13 +57,14 @@ public class AppointmentController {
             .build());
   }
 
-  @GetMapping("/management")
   // @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+  @GetMapping("/management")
   @PreAuthorize("""
       hasAnyAuthority(
           'ROLE_ADMIN',
           'ROLE_MANAGER',
-          'ROLE_RECEPTIONIST'
+          'ROLE_RECEPTIONIST',
+          'ROLE_DOCTOR'
       )
       """)
   public ResponseEntity<ApiResp<Page<AppointmentDto>>> getForManagement(
@@ -105,7 +106,12 @@ public class AppointmentController {
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+  @PreAuthorize("""
+      hasAnyAuthority(
+          'ROLE_ADMIN',
+          'ROLE_RECEPTIONIST'
+      )
+      """)
   public ResponseEntity<ApiResp<AppointmentDto>> updateStatus(
       @PathVariable UUID id,
       @Valid @RequestBody UpdateAppointmentStatusRequest request) {

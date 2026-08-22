@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.graduation.project.clinic.enums.PetHealthStatus;
 import com.graduation.project.clinic.examination.entity.MedicalRecordStatus;
 
 public final class ExaminationDtos {
@@ -18,11 +19,13 @@ public final class ExaminationDtos {
   public record SaveExaminationRequest(
       @Size(max = 5000) String symptoms,
 
-      @NotBlank(message = "Chẩn đoán không được để trống") @Size(max = 5000) String diagnosis,
+      @Size(max = 5000) String diagnosis,
 
       @Size(max = 5000) String treatmentPlan,
 
-      @DecimalMin(value = "0.01", message = "Cân nặng phải lớn hơn 0") BigDecimal weightKg,
+      @DecimalMin(value = "0.01") @Digits(integer = 4, fraction = 2) BigDecimal weightKg,
+
+      @NotNull PetHealthStatus healthStatus,
 
       @Size(max = 5000) String doctorNote) {
   }
@@ -54,21 +57,36 @@ public final class ExaminationDtos {
       String note) {
   }
 
-  public record MedicalRecordResponse(
+  public record PrescriptionItemResponse(
       UUID id,
-      UUID appointmentId,
-      UUID petId,
-      UUID doctorId,
-      String symptoms,
-      String diagnosis,
-      String treatmentPlan,
-      BigDecimal weightKg,
-      String doctorNote,
-      String status,
-      Instant createdAt,
-      Instant updatedAt,
-      List<PrescriptionResponse> prescriptions) {
+      UUID medicineId,
+      String medicineName,
+      String sku,
+      String unit,
+      BigDecimal quantity,
+      String dosage,
+      Integer durationDays,
+      String note) {
   }
+
+  public record MedicalRecordResponse(UUID id, UUID appointmentId, UUID petId, UUID doctorId, String symptoms,
+      String diagnosis, String treatmentPlan, BigDecimal weightKg, PetHealthStatus healthStatus, String doctorNote,
+      MedicalRecordStatus status, Instant createdAt, Instant updatedAt, List<PrescriptionItemResponse> prescriptions) {
+  } // public record MedicalRecordResponse(
+  // UUID id,
+  // UUID appointmentId,
+  // UUID petId,
+  // UUID doctorId,
+  // String symptoms,
+  // String diagnosis,
+  // String treatmentPlan,
+  // BigDecimal weightKg,
+  // String doctorNote,
+  // String status,
+  // Instant createdAt,
+  // Instant updatedAt,
+  // List<PrescriptionResponse> prescriptions) {
+  // }
 
   public record MedicineOptionResponse(
       UUID id,
@@ -84,7 +102,9 @@ public final class ExaminationDtos {
       UUID petId,
       String petName,
       String diagnosis,
-      MedicalRecordStatus status,
+      PetHealthStatus healthStatus,
+      BigDecimal weightKg,
       Instant completedAt) {
   }
+
 }
