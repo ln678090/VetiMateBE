@@ -1,5 +1,10 @@
 package com.graduation.project.product.service.Impl;
 
+import com.graduation.project.catalog.entity.Brand;
+import com.graduation.project.catalog.entity.Category;
+import com.graduation.project.catalog.repository.BrandRepository;
+import com.graduation.project.catalog.repository.CategoryRepository;
+import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.req.ProductFilterRequest;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
@@ -9,9 +14,12 @@ import com.graduation.project.product.mapper.ProductMapper;
 import com.graduation.project.product.repository.ProductRepository;
 import com.graduation.project.product.service.ProductService;
 import jakarta.persistence.criteria.Predicate;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductServiceImpl implements ProductService {
 
   private final ProductRepository productRepository;
+  private final CategoryRepository categoryRepository;
+  private final BrandRepository brandRepository;
   private final ProductMapper productMapper;
 
   @Override
@@ -75,6 +85,100 @@ public class ProductServiceImpl implements ProductService {
         productRepository
             .findByIsFeaturedTrueAndIsActiveTrueOrderByRatingDesc(pageable)
             .getContent());
+  }
+
+  // ============ Quản trị (Staff) ============
+
+  @Override
+  @Transactional
+  public ProductResp createProduct(ProductReq req) {
+    Category category = categoryRepository.findById(req.getCategoryId())
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+    
+    Brand brand = brandRepository.findById(req.getBrandId())
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+
+    String slug = generateSlug(req.getName());
+    if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()) {
+      slug = slug + "-" + System.currentTimeMillis();
+    }
+
+    Product product = Product.builder()
+        .name(req.getName())
+        .slug(slug)
+        .description(req.getDescription())
+        .shortDesc(req.getShortDesc())
+        .category(category)
+        .brand(brand)
+        .petType(req.getPetType())
+        .price(req.getPrice())
+        .originalPrice(req.getOriginalPrice())
+        .stockQuantity(req.getStockQuantity())
+        .imageUrl(req.getImageUrl())
+        .galleryUrls(req.getGalleryUrls())
+        .isFeatured(req.getIsFeatured())
+        .isNew(req.getIsNew())
+        .isActive(req.getIsActive())
+        .build();
+
+    product = productRepository.save(product);
+    return productMapper.toResp(product);
+  }
+
+  @Override
+  @Transactional
+  public ProductResp updateProduct(UUID id, ProductReq req) {
+    Product product = productRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+
+    Category category = categoryRepository.findById(req.getCategoryId())
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+    
+    Brand brand = brandRepository.findById(req.getBrandId())
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+
+    if (!product.getName().equals(req.getName())) {
+      String slug = generateSlug(req.getName());
+      if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent() && !product.getSlug().equals(slug)) {
+        slug = slug + "-" + System.currentTimeMillis();
+      }
+      product.setSlug(slug);
+    }
+
+    product.setName(req.getName());
+    product.setDescription(req.getDescription());
+    product.setShortDesc(req.getShortDesc());
+    product.setCategory(category);
+    product.setBrand(brand);
+    product.setPetType(req.getPetType());
+    product.setPrice(req.getPrice());
+    product.setOriginalPrice(req.getOriginalPrice());
+    product.setStockQuantity(req.getStockQuantity());
+    product.setImageUrl(req.getImageUrl());
+    product.setGalleryUrls(req.getGalleryUrls());
+    product.setIsFeatured(req.getIsFeatured());
+    product.setIsNew(req.getIsNew());
+    product.setIsActive(req.getIsActive());
+
+    product = productRepository.save(product);
+    return productMapper.toResp(product);
+  }
+
+  @Override
+  @Transactional
+  public void deleteProduct(UUID id) {
+    Product product = productRepository.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    product.setIsActive(false); // Soft delete
+    productRepository.save(product);
+  }
+
+  private String generateSlug(String input) {
+    if (input == null || input.isEmpty()) return "";
+    String nowhitespace = Pattern.compile("[\\s]").matcher(input).replaceAll("-");
+    String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+    String slug = Pattern.compile("[^\\w-]").matcher(normalized).replaceAll("");
+    return slug.toLowerCase().replaceAll("-+", "-").replaceAll("^-|-$", "");
   }
 
   // ============ Specification builder ============

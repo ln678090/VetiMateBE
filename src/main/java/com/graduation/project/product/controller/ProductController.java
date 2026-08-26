@@ -11,10 +11,17 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import com.graduation.project.product.dto.req.ProductReq;
 
 @RestController
 @RequestMapping("/api/products")
@@ -84,6 +91,36 @@ public class ProductController {
     return ApiResp.<List<ProductResp>>builder()
         .message("Lấy sản phẩm nổi bật thành công")
         .data(productService.getFeaturedProducts(limit))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  // ============ Quản trị (Staff) ============
+
+  @PostMapping
+  public ApiResp<ProductResp> createProduct(@Valid @RequestBody ProductReq req) {
+    return ApiResp.<ProductResp>builder()
+        .message("Thêm sản phẩm thành công")
+        .data(productService.createProduct(req))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @PutMapping("/{id}")
+  public ApiResp<ProductResp> updateProduct(
+      @PathVariable UUID id, @Valid @RequestBody ProductReq req) {
+    return ApiResp.<ProductResp>builder()
+        .message("Cập nhật sản phẩm thành công")
+        .data(productService.updateProduct(id, req))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @DeleteMapping("/{id}")
+  public ApiResp<Void> deleteProduct(@PathVariable UUID id) {
+    productService.deleteProduct(id);
+    return ApiResp.<Void>builder()
+        .message("Xóa sản phẩm thành công")
         .timestamp(Instant.now().toString())
         .build();
   }
