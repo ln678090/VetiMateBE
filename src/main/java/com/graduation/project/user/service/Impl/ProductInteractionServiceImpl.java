@@ -29,6 +29,12 @@ public class ProductInteractionServiceImpl implements ProductInteractionService 
     private final ProductMapper productMapper;
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean isFavorite(UUID userId, UUID productId) {
+        return favoriteRepository.existsById(new UserFavoriteProductId(userId, productId));
+    }
+
+    @Override
     @Transactional
     public void toggleFavorite(UUID userId, UUID productId) {
         UserFavoriteProductId id = new UserFavoriteProductId(userId, productId);
@@ -59,6 +65,7 @@ public class ProductInteractionServiceImpl implements ProductInteractionService 
         });
         viewed.setViewedAt(OffsetDateTime.now());
         viewedRepository.save(viewed);
+        viewedRepository.keepTopN(userId, 50);
     }
 
     @Override
