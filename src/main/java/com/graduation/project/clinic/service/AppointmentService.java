@@ -22,15 +22,13 @@ public interface AppointmentService {
 
   AppointmentDto updateStatus(UUID id, UpdateAppointmentStatusRequest request);
 
+  AppointmentDto updateCallStatus(UUID id, boolean isCalled);
+
   List<AvailableSlotResponse> getAvailableSlots(UUID serviceId, LocalDate date);
 
   Page<AppointmentDto> getForManagement(
-      AppointmentStatus status,
-      LocalDate date,
-      Pageable pageable);
-
-  Page<AppointmentDto> getForManagement(
-      LocalDate date,
+      LocalDate startDate,
+      LocalDate endDate,
       AppointmentStatus status,
       Pageable pageable);
 }

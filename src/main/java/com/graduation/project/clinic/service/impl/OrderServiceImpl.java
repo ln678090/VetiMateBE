@@ -1,6 +1,7 @@
 package com.graduation.project.clinic.service.impl;
 
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
+import com.graduation.project.clinic.dto.req.POSCheckoutRequest;
 import com.graduation.project.clinic.dto.resp.OrderItemResponse;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
 import com.graduation.project.clinic.entity.Customer;
@@ -11,6 +12,8 @@ import com.graduation.project.clinic.repository.InvoiceRepository;
 import com.graduation.project.clinic.service.OrderService;
 import com.graduation.project.product.entity.Product;
 import com.graduation.project.product.repository.ProductRepository;
+import com.graduation.project.staff.entity.Staff;
+import com.graduation.project.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,7 @@ public class OrderServiceImpl implements OrderService {
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
+    private final StaffRepository staffRepository;
 
     @Override
     @Transactional
@@ -96,6 +100,69 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
+    public OrderResponse posCheckout(UUID currentUserId, POSCheckoutRequest request) {
+        // Find or create walk-in customer
+        Customer customer = customerRepository.findByPhone("0000000000")
+                .orElseGet(() -> {
+                    Customer newCust = new Customer();
+                    newCust.setFullName("Khách vãng lai");
+                    newCust.setPhone("0000000000");
+                    newCust.setAddress("Tại quầy");
+                    return customerRepository.save(newCust);
+                });
+
+        // Build invoice
+        Invoice invoice = new Invoice();
+        invoice.setCustomer(customer);
+        invoice.setType("SHOP");
+        invoice.setStatus("PAID"); // POS is usually paid immediately
+        invoice.setPaymentMethod(request.getPaymentMethod());
+        invoice.setPaidAt(java.time.Instant.now()); // Required by DB constraint when status is PAID
+        invoice.setInvoiceCode("POS-" + System.currentTimeMillis());
+        invoice.setNote(request.getNote());
+        
+        Staff staff = staffRepository.findByUserIdAndActiveTrue(currentUserId).orElse(null);
+        if (staff != null) {
+            invoice.setCreatedBy(staff.getId());
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (POSCheckoutRequest.CartItemReq itemReq : request.getItems()) {
+            Product product = productRepository.findById(itemReq.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+            
+            // Decrease stock quantity
+            if (product.getStockQuantity() < itemReq.getQuantity()) {
+                throw new RuntimeException("Not enough stock for product: " + product.getName());
+            }
+            product.setStockQuantity(product.getStockQuantity() - itemReq.getQuantity());
+            productRepository.save(product);
+
+            InvoiceItem item = new InvoiceItem();
+            item.setInvoice(invoice);
+            item.setProduct(product);
+            item.setNameSnapshot(product.getName());
+            item.setQuantity(new BigDecimal(itemReq.getQuantity()));
+            item.setUnitPrice(product.getPrice());
+            
+            BigDecimal itemTotal = product.getPrice().multiply(item.getQuantity());
+            item.setTotal(itemTotal);
+            
+            invoice.getItems().add(item);
+            total = total.add(itemTotal);
+        }
+
+        invoice.setSubtotal(total);
+        invoice.setTotalAmount(total);
+
+        invoice = invoiceRepository.save(invoice);
+
+        return mapToResponse(invoice);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getMyOrders(UUID currentUserId) {
         return invoiceRepository.findByCustomer_UserIdOrderByCreatedAtDesc(currentUserId)
@@ -116,6 +183,15 @@ public class OrderServiceImpl implements OrderService {
         }
         
         return mapToResponse(invoice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getPosHistory(java.time.Instant startDate, java.time.Instant endDate) {
+        return invoiceRepository.findByTypeAndStatusAndPaidAtBetweenOrderByPaidAtDesc("SHOP", "PAID", startDate, endDate)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     private OrderResponse mapToResponse(Invoice invoice) {

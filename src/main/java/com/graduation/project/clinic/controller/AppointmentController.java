@@ -68,12 +68,11 @@ public class AppointmentController {
       )
       """)
   public ResponseEntity<ApiResp<Page<AppointmentDto>>> getForManagement(
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       @RequestParam(required = false) AppointmentStatus status,
-
-      @PageableDefault(size = 20, sort = "startAt") Pageable pageable) {
-    Page<AppointmentDto> appointments = appointmentService.getForManagement(date, status, pageable);
+      @PageableDefault(size = 100, sort = "startAt") Pageable pageable) {
+    Page<AppointmentDto> appointments = appointmentService.getForManagement(startDate, endDate, status, pageable);
 
     return ResponseEntity.ok(
         ApiResp.<Page<AppointmentDto>>builder()
@@ -120,6 +119,20 @@ public class AppointmentController {
     return ResponseEntity.ok(
         ApiResp.<AppointmentDto>builder()
             .message("Cập nhật trạng thái thành công")
+            .data(appointment)
+            .build());
+  }
+
+  @PatchMapping("/{id}/call-status")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_RECEPTIONIST')")
+  public ResponseEntity<ApiResp<AppointmentDto>> updateCallStatus(
+      @PathVariable UUID id,
+      @RequestParam boolean isCalled) {
+    AppointmentDto appointment = appointmentService.updateCallStatus(id, isCalled);
+
+    return ResponseEntity.ok(
+        ApiResp.<AppointmentDto>builder()
+            .message("Cập nhật trạng thái gọi điện thành công")
             .data(appointment)
             .build());
   }

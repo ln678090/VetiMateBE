@@ -5,5 +5,6 @@ public enum AppointmentStatus {
   CONFIRMED, // lễ tân/bác sĩ đã xác nhận
   DONE, // đã khám xong
   CANCELLED, // huỷ
-  NO_SHOW // khách không đến
+  NO_SHOW, // khách không đến
+  ARRIVED // khách đã đến
 }
