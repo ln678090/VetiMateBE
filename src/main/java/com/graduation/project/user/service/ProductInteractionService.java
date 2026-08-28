@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ProductInteractionService {
+    boolean isFavorite(UUID userId, UUID productId);
     void toggleFavorite(UUID userId, UUID productId);
     void recordView(UUID userId, UUID productId);
     Page<ProductResp> getFavoriteProducts(UUID userId, OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable);

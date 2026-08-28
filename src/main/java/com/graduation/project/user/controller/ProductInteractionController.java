@@ -37,6 +37,17 @@ public class ProductInteractionController {
         throw new IllegalStateException("Authentication principal không hợp lệ");
     }
 
+    @GetMapping("/favorites/check/{productId}")
+    public ResponseEntity<ApiResp<Boolean>> checkFavorite(
+            @PathVariable UUID productId,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResp.<Boolean>builder()
+                .message("Thành công")
+                .data(interactionService.isFavorite(getUserId(authentication), productId))
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+
     @PostMapping("/favorites/{productId}")
     public ResponseEntity<ApiResp<String>> toggleFavorite(
             @PathVariable UUID productId,
