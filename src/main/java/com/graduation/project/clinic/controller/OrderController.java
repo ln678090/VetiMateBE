@@ -1,6 +1,6 @@
 package com.graduation.project.clinic.controller;
 
-import com.graduation.project.auth.config.custom.CustomUserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
 import com.graduation.project.clinic.service.OrderService;
@@ -22,22 +22,22 @@ public class OrderController {
 
     @PostMapping("/checkout")
     public ResponseEntity<OrderResponse> checkout(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CheckoutRequest request) {
-        return ResponseEntity.ok(orderService.checkout(userDetails.id(), request));
+        return ResponseEntity.ok(orderService.checkout(UUID.fromString(jwt.getSubject()), request));
     }
 
     @GetMapping("/my-orders")
     public ResponseEntity<List<OrderResponse>> getMyOrders(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(orderService.getMyOrders(userDetails.id()));
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(orderService.getMyOrders(UUID.fromString(jwt.getSubject())));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderById(
             @PathVariable UUID id,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(orderService.getOrderById(id, userDetails.id()));
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(orderService.getOrderById(id, UUID.fromString(jwt.getSubject())));
     }
 }
 

@@ -1,4 +1,4 @@
-package com.graduation.project.inventory.service.Impl;
+package com.graduation.project.inventory.service.impl;
 
 import com.graduation.project.inventory.dto.req.CreateImportVoucherReq;
 import com.graduation.project.inventory.dto.req.ImportVoucherItemReq;
