@@ -51,10 +51,13 @@ public class OrderServiceImpl implements OrderService {
         customerRepository.save(customer);
 
         // Build invoice
-        Invoice invoice = new Invoice();
-        invoice.setCustomer(customer);
-        invoice.setType("SHOP");
-        invoice.setStatus("DRAFT");
+        Invoice invoice = Invoice.builder()
+                .customer(customer)
+                .type("SHOP")
+                .status("DRAFT")
+                .items(new java.util.ArrayList<>())
+                .discountAmount(BigDecimal.ZERO)
+                .build();
         
         String paymentMethod = request.getPaymentMethod();
         if ("COD".equals(paymentMethod)) {

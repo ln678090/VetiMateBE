@@ -4,7 +4,7 @@ import com.graduation.project.common.resp.ApiResp;
 import com.graduation.project.inventory.dto.req.CreateImportVoucherReq;
 import com.graduation.project.inventory.dto.resp.StockVoucherResp;
 import com.graduation.project.inventory.service.InventoryService;
-import com.graduation.project.user.entity.User;
+import org.springframework.security.oauth2.jwt.Jwt;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -29,10 +29,10 @@ public class InventoryController {
   @PostMapping("/import")
   public ApiResp<StockVoucherResp> createImportVoucher(
       @Valid @RequestBody CreateImportVoucherReq req,
-      @AuthenticationPrincipal User user) {
+      @AuthenticationPrincipal Jwt jwt) {
     // Hack: Normally user.getStaff().getId() would be used. Assuming Staff ID = User ID for testing if no staff found.
     // In real app, we should get the staff linked to the user.
-    UUID staffId = user.getId(); 
+    UUID staffId = UUID.fromString(jwt.getSubject()); 
     return ApiResp.<StockVoucherResp>builder()
         .message("Tạo phiếu nhập kho thành công")
         .data(inventoryService.createImportVoucher(req, staffId))
@@ -43,8 +43,8 @@ public class InventoryController {
   @PutMapping("/{id}/approve")
   public ApiResp<StockVoucherResp> approveVoucher(
       @PathVariable UUID id,
-      @AuthenticationPrincipal User user) {
-    UUID staffId = user.getId(); 
+      @AuthenticationPrincipal Jwt jwt) {
+    UUID staffId = UUID.fromString(jwt.getSubject()); 
     return ApiResp.<StockVoucherResp>builder()
         .message("Duyệt phiếu thành công")
         .data(inventoryService.approveVoucher(id, staffId))

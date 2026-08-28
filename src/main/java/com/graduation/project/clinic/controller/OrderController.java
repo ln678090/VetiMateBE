@@ -1,6 +1,8 @@
 package com.graduation.project.clinic.controller;
 
 import com.graduation.project.auth.utils.SecurityUtils;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
 import com.graduation.project.clinic.service.OrderService;
@@ -22,25 +24,22 @@ public class OrderController {
 
     @PostMapping("/checkout")
     public ResponseEntity<OrderResponse> checkout(
-            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CheckoutRequest request) {
-        UUID userId = SecurityUtils.currentUserId(authentication);
-        return ResponseEntity.ok(orderService.checkout(userId, request));
+        return ResponseEntity.ok(orderService.checkout(UUID.fromString(jwt.getSubject()), request));
     }
 
     @PostMapping("/pos-checkout")
     public ResponseEntity<OrderResponse> posCheckout(
-            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody com.graduation.project.clinic.dto.req.POSCheckoutRequest request) {
-        UUID userId = SecurityUtils.currentUserId(authentication);
-        return ResponseEntity.ok(orderService.posCheckout(userId, request));
+        return ResponseEntity.ok(orderService.posCheckout(UUID.fromString(jwt.getSubject()), request));
     }
 
     @GetMapping("/my-orders")
     public ResponseEntity<List<OrderResponse>> getMyOrders(
-            Authentication authentication) {
-        UUID userId = SecurityUtils.currentUserId(authentication);
-        return ResponseEntity.ok(orderService.getMyOrders(userId));
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(orderService.getMyOrders(UUID.fromString(jwt.getSubject())));
     }
 
     @GetMapping("/pos-history")
@@ -63,9 +62,8 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderById(
             @PathVariable UUID id,
-            Authentication authentication) {
-        UUID userId = SecurityUtils.currentUserId(authentication);
-        return ResponseEntity.ok(orderService.getOrderById(id, userId));
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(orderService.getOrderById(id, UUID.fromString(jwt.getSubject())));
     }
 }
 
