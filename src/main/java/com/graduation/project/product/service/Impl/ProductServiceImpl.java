@@ -1,4 +1,4 @@
-package com.graduation.project.product.service.impl;
+package com.graduation.project.product.service.Impl;
 
 import com.graduation.project.catalog.entity.Brand;
 import com.graduation.project.catalog.entity.Category;

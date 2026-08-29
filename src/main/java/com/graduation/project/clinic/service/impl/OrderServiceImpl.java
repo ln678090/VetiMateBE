@@ -14,6 +14,7 @@ import com.graduation.project.product.entity.Product;
 import com.graduation.project.product.repository.ProductRepository;
 import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.staff.repository.StaffRepository;
+import com.graduation.project.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final StaffRepository staffRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -197,10 +199,120 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAllShopOrders() {
+        // Return only online shop orders (starting with ORD-)
+        return invoiceRepository.findAll()
+                .stream()
+                .filter(inv -> "SHOP".equals(inv.getType()))
+                .filter(inv -> inv.getInvoiceCode() != null && inv.getInvoiceCode().startsWith("ORD-"))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrderStatus(UUID id, String newStatus) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!"SHOP".equals(invoice.getType())) {
+            throw new RuntimeException("Only SHOP orders can be updated here");
+        }
+
+        invoice.setStatus(newStatus);
+        invoice = invoiceRepository.save(invoice);
+        
+        if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
+            String statusStr = switch (newStatus) {
+                case "CONFIRMED" -> "đã được xác nhận";
+                case "SHIPPING" -> "đang được giao";
+                case "DELIVERED" -> "đã giao thành công";
+                case "CANCELLED" -> "đã bị hủy";
+                default -> "được cập nhật trạng thái";
+            };
+            notificationService.createNotification(
+                    invoice.getCustomer().getUserId(),
+                    "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
+                    "Đơn hàng của bạn " + statusStr + ".",
+                    "/profile/orders?orderId=" + invoice.getId()
+            );
+        }
+        
+        return mapToResponse(invoice);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse cancelRequest(UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.CancelRequestReq req) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (invoice.getCustomer().getUserId() != null && !invoice.getCustomer().getUserId().equals(currentUserId)) {
+            throw new RuntimeException("Access denied");
+        }
+        
+        if ("DELIVERED".equals(invoice.getStatus()) || "CANCELLED".equals(invoice.getStatus())) {
+            throw new RuntimeException("Cannot cancel an order that is already delivered or cancelled");
+        }
+
+        String note = invoice.getNote() != null ? invoice.getNote() : "";
+        note = note + " | [CANCEL_REQUEST]: " + req.getReason();
+        if (note.length() > 500) {
+            note = note.substring(0, 497) + "...";
+        }
+        invoice.setNote(note);
+        
+        invoice = invoiceRepository.save(invoice);
+        return mapToResponse(invoice);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse processCancelRequest(UUID id, com.graduation.project.clinic.dto.req.ProcessCancelReq req) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!"SHOP".equals(invoice.getType())) {
+            throw new RuntimeException("Only SHOP orders can be updated here");
+        }
+
+        if (req.getAccept()) {
+            invoice.setStatus("CANCELLED");
+        } else {
+            // Reject cancellation, remove the tag from note
+            String note = invoice.getNote();
+            if (note != null && note.contains("| [CANCEL_REQUEST]:")) {
+                int idx = note.indexOf("| [CANCEL_REQUEST]:");
+                note = note.substring(0, idx).trim();
+                invoice.setNote(note);
+            }
+        }
+
+        invoice = invoiceRepository.save(invoice);
+        
+        if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
+            String msg = req.getAccept() ? "Yêu cầu hủy đơn hàng của bạn đã được chấp nhận." : "Yêu cầu hủy đơn hàng của bạn đã bị từ chối.";
+            notificationService.createNotification(
+                    invoice.getCustomer().getUserId(),
+                    "Phản hồi yêu cầu hủy đơn " + invoice.getInvoiceCode(),
+                    msg,
+                    "/profile/orders?orderId=" + invoice.getId()
+            );
+        }
+
+        return mapToResponse(invoice);
+    }
+
     private OrderResponse mapToResponse(Invoice invoice) {
         String feStatus = switch (invoice.getStatus()) {
             case "DRAFT" -> "PENDING";
-            case "PAID" -> "CONFIRMED";
+            case "CONFIRMED" -> "CONFIRMED";
+            case "SHIPPING" -> "SHIPPING";
+            case "DELIVERED" -> "DELIVERED";
+            case "PAID" -> "DELIVERED"; // POS orders usually PAID immediately, map to DELIVERED
             case "CANCELLED" -> "CANCELLED";
             default -> "PENDING";
         };
@@ -229,9 +341,12 @@ public class OrderServiceImpl implements OrderService {
                 .shippingFee(BigDecimal.ZERO)
                 .finalAmount(invoice.getTotalAmount())
                 .createdAt(invoice.getCreatedAt())
+                .updatedAt(invoice.getUpdatedAt())
                 .paymentMethod(fePaymentMethod)
                 .shippingAddress(invoice.getCustomer().getAddress())
                 .note(invoice.getNote())
+                .customerName(invoice.getCustomer().getFullName())
+                .customerPhone(invoice.getCustomer().getPhone())
                 .items(itemResponses)
                 .build();
     }

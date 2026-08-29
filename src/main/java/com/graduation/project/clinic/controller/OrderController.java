@@ -42,6 +42,18 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getMyOrders(UUID.fromString(jwt.getSubject())));
     }
 
+    @GetMapping("")
+    public ResponseEntity<List<OrderResponse>> getAllShopOrders() {
+        return ResponseEntity.ok(orderService.getAllShopOrders());
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<OrderResponse> updateOrderStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.graduation.project.clinic.dto.req.UpdateOrderStatusReq request) {
+        return ResponseEntity.ok(orderService.updateOrderStatus(id, request.getStatus()));
+    }
+
     @GetMapping("/pos-history")
     public ResponseEntity<List<OrderResponse>> getPosHistory(
             @RequestParam(required = false) String startDate,
@@ -64,6 +76,21 @@ public class OrderController {
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(orderService.getOrderById(id, UUID.fromString(jwt.getSubject())));
+    }
+
+    @PostMapping("/{id}/cancel-request")
+    public ResponseEntity<OrderResponse> cancelRequest(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody com.graduation.project.clinic.dto.req.CancelRequestReq request) {
+        return ResponseEntity.ok(orderService.cancelRequest(id, UUID.fromString(jwt.getSubject()), request));
+    }
+
+    @PostMapping("/{id}/process-cancel-request")
+    public ResponseEntity<OrderResponse> processCancelRequest(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.graduation.project.clinic.dto.req.ProcessCancelReq request) {
+        return ResponseEntity.ok(orderService.processCancelRequest(id, request));
     }
 }
 

@@ -12,9 +12,9 @@ spring:
     password: ${DB_PASSWORD}    
   jpa:
     hibernate:
-      ddl-auto: update 
+      ddl-auto: validate 
   flyway:
-    enabled: false
+    enabled: true
     baseline-on-migrate: true     
   data:
     redis:

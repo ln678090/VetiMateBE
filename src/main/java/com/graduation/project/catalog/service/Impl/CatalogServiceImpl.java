@@ -1,4 +1,4 @@
-package com.graduation.project.catalog.service.impl;
+package com.graduation.project.catalog.service.Impl;
 
 import com.graduation.project.catalog.dto.req.BrandReq;
 import com.graduation.project.catalog.dto.req.CategoryReq;

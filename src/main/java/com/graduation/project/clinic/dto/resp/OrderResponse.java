@@ -18,9 +18,12 @@ public class OrderResponse {
     private BigDecimal shippingFee;
     private BigDecimal finalAmount;
     private Instant createdAt;
+    private Instant updatedAt;
     private String paymentMethod;
     private String shippingAddress;
     private String note;
+    private String customerName;
+    private String customerPhone;
     
     private List<OrderItemResponse> items;
 }

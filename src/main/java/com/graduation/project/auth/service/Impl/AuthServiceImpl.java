@@ -1,4 +1,4 @@
-package com.graduation.project.auth.service.impl;
+package com.graduation.project.auth.service.Impl;
 
 import com.graduation.project.auth.config.custom.CustomUserDetails;
 import com.graduation.project.auth.config.jwt.TokenService;
