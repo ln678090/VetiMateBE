@@ -16,8 +16,6 @@ public record PetManagementSummary(
     String gender,
     LocalDate birthDate,
     BigDecimal weightKg,
-    String color,
-    String notes,
 
     UUID customerId,
     String customerName,

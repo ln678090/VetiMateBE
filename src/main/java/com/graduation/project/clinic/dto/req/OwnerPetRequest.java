@@ -22,9 +22,10 @@ public record OwnerPetRequest(
 
     @PastOrPresent LocalDate birthDate,
 
-    @DecimalMin("0.01") BigDecimal weightKg,
+    @DecimalMin("0.01") BigDecimal weightKg
 
-    @Size(max = 100) String color,
-
-    @Size(max = 1000) String notes) {
+// @Size(max = 100) String color,
+//
+// @Size(max = 1000) String notes
+) {
 }

@@ -24,9 +24,5 @@ public record ManagementPetRequest(
 
     @PastOrPresent LocalDate birthDate,
 
-    @DecimalMin("0.01") BigDecimal weightKg,
-
-    @Size(max = 100) String color,
-
-    @Size(max = 1000) String notes) {
+    @DecimalMin("0.01") BigDecimal weightKg) {
 }
