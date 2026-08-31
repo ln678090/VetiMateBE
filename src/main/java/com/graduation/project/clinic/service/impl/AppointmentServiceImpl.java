@@ -148,33 +148,32 @@ public class AppointmentServiceImpl implements AppointmentService {
   }
 
   @Override
-  @Transactional(readOnly = true)
-  public Page<AppointmentDto> getForManagement(
-      AppointmentStatus status,
-      LocalDate date,
-      Pageable pageable) {
-    return appointmentRepository.findAll(pageable).map(appointmentMapper::toDto);
+  @Transactional
+  public AppointmentDto updateCallStatus(UUID id, boolean isCalled) {
+    Appointment appointment = appointmentRepository.findByIdFull(id)
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
+    appointment.setIsCalledToConfirm(isCalled);
+    return appointmentMapper.toDto(appointmentRepository.save(appointment));
   }
-
-  private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
   @Override
   @Transactional(readOnly = true)
   public Page<AppointmentDto> getForManagement(
-      LocalDate date,
+      LocalDate startDate,
+      LocalDate endDate,
       AppointmentStatus status,
       Pageable pageable) {
-    LocalDate selectedDate = date != null
-        ? date
-        : LocalDate.now(BUSINESS_ZONE);
+    
+    LocalDate sDate = startDate != null ? startDate : LocalDate.now(ZONE);
+    LocalDate eDate = endDate != null ? endDate : LocalDate.now(ZONE);
 
-    Instant startAt = selectedDate
-        .atStartOfDay(BUSINESS_ZONE)
+    Instant startAt = sDate
+        .atStartOfDay(ZONE)
         .toInstant();
 
-    Instant endAt = selectedDate
+    Instant endAt = eDate
         .plusDays(1)
-        .atStartOfDay(BUSINESS_ZONE)
+        .atStartOfDay(ZONE)
         .toInstant();
 
     return appointmentRepository
