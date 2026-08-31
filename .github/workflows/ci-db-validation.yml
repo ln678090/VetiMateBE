@@ -1,0 +1,67 @@
+name: CI - Validate DB Schema with Flyway
+
+on:
+  push:
+    branches: [main, develop, master]
+  pull_request:
+    branches: [main, develop, master]
+
+jobs:
+  validate-flyway-entity:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ciuser
+          POSTGRES_PASSWORD: cipass
+          POSTGRES_DB: cidb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Run Flyway migrate
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/cidb
+          DB_USERNAME_POSTGRES: ciuser
+          DB_PASSWORD: cipass
+          REDIS_USERNAME: ""
+          REDIS_PASSWORD: ""
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
+          RSA_PUBLIC_KEY: ${{ secrets.RSA_PUBLIC_KEY }}
+          REFRESH_TOKEN_KEY_PREFIX: dummy
+          CORS_ALLOWED_ORIGINS: http://localhost
+        run: ./mvnw flyway:migrate -B
+
+      - name: Run Spring Boot validation test
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/cidb
+          DB_USERNAME_POSTGRES: ciuser
+          DB_PASSWORD: cipass
+          REDIS_USERNAME: ""
+          REDIS_PASSWORD: ""
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
+          RSA_PUBLIC_KEY: ${{ secrets.RSA_PUBLIC_KEY }}
+          REFRESH_TOKEN_KEY_PREFIX: dummy
+          CORS_ALLOWED_ORIGINS: http://localhost
+          SPRING_PROFILES_ACTIVE: ci
+        run: ./mvnw test -Dtest=SchemaValidationTest -B
