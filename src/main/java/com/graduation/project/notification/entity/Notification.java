@@ -16,35 +16,79 @@ import java.util.UUID;
 @Builder
 public class Notification {
 
-    @Id
-    @UuidV7
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+  @Id
+  @UuidV7
+  @Column(name = "id", updatable = false, nullable = false)
+  private UUID id;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+  @Column(name = "user_id")
+  private UUID userId;
 
-    @Column(name = "title", nullable = false, length = 150)
-    private String title;
+  @Column(name = "template_id")
+  private UUID templateId;
 
-    @Column(name = "message", nullable = false, length = 500)
-    private String message;
+  @Column(name = "channel", nullable = false, length = 20)
+  private String channel;
 
-    @Column(name = "link", length = 255)
-    private String link;
+  @Column(name = "recipient", length = 255)
+  private String recipient;
 
-    @Column(name = "is_read", nullable = false)
-    @Builder.Default
-    private Boolean isRead = false;
+  @Column(name = "title", length = 255)
+  private String title;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "body", nullable = false)
+  private String body;
 
-    @PrePersist
-    void onCreate() {
-        this.createdAt = Instant.now();
-        if (this.isRead == null) {
-            this.isRead = false;
-        }
+  @Column(name = "status", nullable = false, length = 20)
+  private String status;
+
+  @Column(name = "attempt_count", nullable = false)
+  private Integer attemptCount = 0;
+
+  @Column(name = "scheduled_at")
+  private Instant scheduledAt;
+
+  @Column(name = "sent_at")
+  private Instant sentAt;
+
+  @Column(name = "read_at")
+  private Instant readAt;
+
+  @Column(name = "failure_reason", length = 500)
+  private String failureReason;
+
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
+
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
+
+  @Column(name = "link", length = 255)
+  private String link;
+
+  @PrePersist
+  void onCreate() {
+    Instant now = Instant.now();
+
+    if (this.createdAt == null) {
+      this.createdAt = now;
     }
+
+    if (this.updatedAt == null) {
+      this.updatedAt = now;
+    }
+
+    if (this.attemptCount == null) {
+      this.attemptCount = 0;
+    }
+
+    if (this.status == null) {
+      this.status = "PENDING";
+    }
+  }
+
+  @PreUpdate
+  void onUpdate() {
+    this.updatedAt = Instant.now();
+  }
 }
