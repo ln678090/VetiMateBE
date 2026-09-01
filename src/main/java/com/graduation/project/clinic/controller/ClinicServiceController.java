@@ -9,6 +9,7 @@ import com.graduation.project.clinic.service.ClinicServiceService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -44,6 +45,7 @@ public class ClinicServiceController {
 
   // POST /api/clinic/services - Tạo dịch vụ
   @PostMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<ClinicServiceDto>> create(@Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.create(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -52,6 +54,7 @@ public class ClinicServiceController {
 
   // PUT /api/clinic/services/{id} - Sửa dịch vụ
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<ClinicServiceDto>> update(@PathVariable UUID id,
       @Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.update(id, request);
@@ -78,6 +81,7 @@ public class ClinicServiceController {
 
   // DELETE /api/clinic/services/{id} - Xóa dịch vụ
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
     clinicServiceService.delete(id);
     return ResponseEntity.ok(

@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -26,6 +27,7 @@ public class CustomerController {
   private final CustomerService customerService;
 
   @GetMapping("/me/customer")
+  @PreAuthorize("isAuthenticated()")
   public ApiResp<CustomerDto> getMyCustomer(
       Authentication auth) {
     UUID userId = SecurityUtils.currentUserId(auth);
@@ -38,6 +40,7 @@ public class CustomerController {
 
   // POST /api/clinic/customers - Tạo khách hàng
   @PostMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<CustomerDto>> create(@Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.create(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -46,6 +49,7 @@ public class CustomerController {
 
   // PUT /api/clinic/customers/{id} - Sửa khách hàng
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<CustomerDto>> update(@PathVariable UUID id,
       @Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.update(id, request);
@@ -55,6 +59,7 @@ public class CustomerController {
 
   // GET /api/clinic/customers/{id} - Chi tiết khách hàng
   @GetMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<CustomerDto>> getById(@PathVariable UUID id) {
     return ResponseEntity.ok(
         ApiResp.<CustomerDto>builder().message("OK").data(customerService.getById(id)).build());
@@ -62,6 +67,7 @@ public class CustomerController {
 
   // GET /api/clinic/customers?keyword= - Tìm/list khách hàng (paged)
   @GetMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<Page<CustomerDto>>> search(
       @RequestParam(required = false) String keyword,
       @PageableDefault(size = 20) Pageable pageable) {
@@ -72,6 +78,7 @@ public class CustomerController {
 
   // DELETE /api/clinic/customers/{id} - Xóa khách hàng
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
     customerService.delete(id);
     return ResponseEntity.ok(
