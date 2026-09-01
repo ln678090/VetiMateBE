@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -98,6 +99,7 @@ public class ProductController {
   // ============ Quản trị (Staff) ============
 
   @PostMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<ProductResp> createProduct(@Valid @RequestBody ProductReq req) {
     return ApiResp.<ProductResp>builder()
         .message("Thêm sản phẩm thành công")
@@ -107,6 +109,7 @@ public class ProductController {
   }
 
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<ProductResp> updateProduct(
       @PathVariable UUID id, @Valid @RequestBody ProductReq req) {
     return ApiResp.<ProductResp>builder()
@@ -117,6 +120,7 @@ public class ProductController {
   }
 
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<Void> deleteProduct(@PathVariable UUID id) {
     productService.deleteProduct(id);
     return ApiResp.<Void>builder()

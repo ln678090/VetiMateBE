@@ -108,6 +108,7 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/clinic/services/**").permitAll()
             .requestMatchers("/api/tracking/action").permitAll()
             .requestMatchers("/", "/index.html", "/dist/**", "/assets/**").permitAll()
             .anyRequest().authenticated())
