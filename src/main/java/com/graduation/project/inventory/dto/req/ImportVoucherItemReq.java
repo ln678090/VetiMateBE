@@ -19,15 +19,15 @@ public class ImportVoucherItemReq {
   private UUID medicineId;
   private UUID supplierId;
   private String batchCode;
-  
+
   @NotNull(message = "Số lượng không được để trống")
   @Min(value = 1, message = "Số lượng phải lớn hơn 0")
   private BigDecimal quantity;
-  
+
   @NotNull(message = "Giá nhập không được để trống")
   @Min(value = 0, message = "Giá nhập không hợp lệ")
   private BigDecimal importPrice;
-  
+
   private LocalDate expiryDate;
   private String note;
 }

@@ -4,8 +4,8 @@ import com.graduation.project.catalog.entity.Brand;
 import com.graduation.project.catalog.entity.Category;
 import com.graduation.project.catalog.repository.BrandRepository;
 import com.graduation.project.catalog.repository.CategoryRepository;
-import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.req.ProductFilterRequest;
+import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
 import com.graduation.project.product.entity.Product;
@@ -92,34 +92,39 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp createProduct(ProductReq req) {
-    Category category = categoryRepository.findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
-    
-    Brand brand = brandRepository.findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     String slug = generateSlug(req.getName());
     if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()) {
       slug = slug + "-" + System.currentTimeMillis();
     }
 
-    Product product = Product.builder()
-        .name(req.getName())
-        .slug(slug)
-        .description(req.getDescription())
-        .shortDesc(req.getShortDesc())
-        .category(category)
-        .brand(brand)
-        .petType(req.getPetType())
-        .price(req.getPrice())
-        .originalPrice(req.getOriginalPrice())
-        .stockQuantity(req.getStockQuantity())
-        .imageUrl(req.getImageUrl())
-        .galleryUrls(req.getGalleryUrls())
-        .isFeatured(req.getIsFeatured())
-        .isNew(req.getIsNew())
-        .isActive(req.getIsActive())
-        .build();
+    Product product =
+        Product.builder()
+            .name(req.getName())
+            .slug(slug)
+            .description(req.getDescription())
+            .shortDesc(req.getShortDesc())
+            .category(category)
+            .brand(brand)
+            .petType(req.getPetType())
+            .price(req.getPrice())
+            .originalPrice(req.getOriginalPrice())
+            .stockQuantity(req.getStockQuantity())
+            .imageUrl(req.getImageUrl())
+            .galleryUrls(req.getGalleryUrls())
+            .isFeatured(req.getIsFeatured())
+            .isNew(req.getIsNew())
+            .isActive(req.getIsActive())
+            .build();
 
     product = productRepository.save(product);
     return productMapper.toResp(product);
@@ -128,18 +133,25 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp updateProduct(UUID id, ProductReq req) {
-    Product product = productRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
 
-    Category category = categoryRepository.findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
-    
-    Brand brand = brandRepository.findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     if (!product.getName().equals(req.getName())) {
       String slug = generateSlug(req.getName());
-      if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent() && !product.getSlug().equals(slug)) {
+      if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()
+          && !product.getSlug().equals(slug)) {
         slug = slug + "-" + System.currentTimeMillis();
       }
       product.setSlug(slug);
@@ -167,8 +179,10 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public void deleteProduct(UUID id) {
-    Product product = productRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
     product.setIsActive(false); // Soft delete
     productRepository.save(product);
   }

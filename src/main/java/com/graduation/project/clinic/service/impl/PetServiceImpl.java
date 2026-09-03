@@ -9,16 +9,14 @@ import com.graduation.project.clinic.repository.CustomerRepository;
 import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.service.PetService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
-
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +29,10 @@ public class PetServiceImpl implements PetService {
   @Override
   @Transactional
   public void softDelete(UUID petId, UUID customerId) {
-    Pet pet = petRepository.findByIdAndDeletedAtIsNull(petId)
-        .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + petId));
+    Pet pet =
+        petRepository
+            .findByIdAndDeletedAtIsNull(petId)
+            .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + petId));
 
     // Security: verify pet belongs to customer
     if (!pet.getCustomer().getId().equals(customerId)) {
@@ -49,30 +49,43 @@ public class PetServiceImpl implements PetService {
   @Override
   @Transactional
   public PetDto create(PetRequest request) {
-    Customer customer = customerRepository.findById(request.customerId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + request.customerId()));
-    Pet pet = Pet.builder()
-        .customer(customer)
-        .name(request.name())
-        .species(request.species())
-        .breed(request.breed())
-        .gender(request.gender())
-        .birthDate(request.birthDate())
-        .weightKg(request.weightKg())
-        .note(request.note())
-        .build();
+    Customer customer =
+        customerRepository
+            .findById(request.customerId())
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "Không tìm thấy khách hàng: " + request.customerId()));
+    Pet pet =
+        Pet.builder()
+            .customer(customer)
+            .name(request.name())
+            .species(request.species())
+            .breed(request.breed())
+            .gender(request.gender())
+            .birthDate(request.birthDate())
+            .weightKg(request.weightKg())
+            .note(request.note())
+            .build();
     return petMapper.toDto(petRepository.save(pet));
   }
 
   @Override
   @Transactional
   public PetDto update(UUID id, PetRequest request) {
-    Pet pet = petRepository.findByIdWithCustomer(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy pet: " + id));
+    Pet pet =
+        petRepository
+            .findByIdWithCustomer(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy pet: " + id));
     // Cho đổi chủ nếu customerId khác
     if (request.customerId() != null && !request.customerId().equals(pet.getCustomer().getId())) {
-      Customer newOwner = customerRepository.findById(request.customerId())
-          .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + request.customerId()));
+      Customer newOwner =
+          customerRepository
+              .findById(request.customerId())
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Không tìm thấy khách hàng: " + request.customerId()));
       pet.setCustomer(newOwner);
     }
     pet.setName(request.name());
@@ -88,8 +101,10 @@ public class PetServiceImpl implements PetService {
   @Override
   @Transactional(readOnly = true)
   public PetDto getById(UUID id) {
-    Pet pet = petRepository.findByIdWithCustomer(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy pet: " + id));
+    Pet pet =
+        petRepository
+            .findByIdWithCustomer(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy pet: " + id));
     return petMapper.toDto(pet);
   }
 

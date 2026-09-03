@@ -4,10 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-/**
- * Integration test để validate rằng Flyway migration và Spring Entity khớp
- * nhau.
- */
+/** Integration test để validate rằng Flyway migration và Spring Entity khớp nhau. */
 @SpringBootTest
 @ActiveProfiles("ci")
 class SchemaValidationTest {

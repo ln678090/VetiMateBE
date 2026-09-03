@@ -9,10 +9,9 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -73,9 +72,11 @@ public class CatalogController {
   }
 
   // ===== Quản lý Danh mục (Staff/Admin) =====
-  
+
   @PostMapping("/categories")
-  public ApiResp<CategoryResp> createCategory(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.CategoryReq req) {
+  public ApiResp<CategoryResp> createCategory(
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.CategoryReq req) {
     return ApiResp.<CategoryResp>builder()
         .message("Tạo danh mục thành công")
         .data(catalogService.createCategory(req))
@@ -85,8 +86,9 @@ public class CatalogController {
 
   @PutMapping("/categories/{id}")
   public ApiResp<CategoryResp> updateCategory(
-      @PathVariable java.util.UUID id, 
-      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.CategoryReq req) {
+      @PathVariable java.util.UUID id,
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.CategoryReq req) {
     return ApiResp.<CategoryResp>builder()
         .message("Cập nhật danh mục thành công")
         .data(catalogService.updateCategory(id, req))
@@ -106,7 +108,9 @@ public class CatalogController {
   // ===== Quản lý Thương hiệu (Staff/Admin) =====
 
   @PostMapping("/brands")
-  public ApiResp<BrandResp> createBrand(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.BrandReq req) {
+  public ApiResp<BrandResp> createBrand(
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.BrandReq req) {
     return ApiResp.<BrandResp>builder()
         .message("Tạo thương hiệu thành công")
         .data(catalogService.createBrand(req))
@@ -116,8 +120,9 @@ public class CatalogController {
 
   @PutMapping("/brands/{id}")
   public ApiResp<BrandResp> updateBrand(
-      @PathVariable java.util.UUID id, 
-      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.BrandReq req) {
+      @PathVariable java.util.UUID id,
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.BrandReq req) {
     return ApiResp.<BrandResp>builder()
         .message("Cập nhật thương hiệu thành công")
         .data(catalogService.updateBrand(id, req))

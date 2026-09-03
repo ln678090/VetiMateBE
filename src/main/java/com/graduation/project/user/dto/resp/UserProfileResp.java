@@ -5,9 +5,4 @@ import lombok.Builder;
 
 @Builder
 public record UserProfileResp(
-    UUID id,
-    String fullName,
-    String username,
-    String email,
-    String phone
-) {}
+    UUID id, String fullName, String username, String email, String phone) {}

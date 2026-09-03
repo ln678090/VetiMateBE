@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class ProcessCancelReq {
-    @NotNull(message = "Accept flag is required")
-    private Boolean accept;
+  @NotNull(message = "Accept flag is required")
+  private Boolean accept;
 }

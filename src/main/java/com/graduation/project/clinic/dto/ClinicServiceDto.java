@@ -12,5 +12,4 @@ public record ClinicServiceDto(
     Integer durationMin,
     Boolean isActive,
     Instant createdAt,
-    Instant updatedAt) {
-}
+    Instant updatedAt) {}

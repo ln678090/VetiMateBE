@@ -1,7 +1,6 @@
 package com.graduation.project.clinic.dto;
 
 import com.graduation.project.clinic.entity.AppointmentStatus;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -22,5 +21,4 @@ public record AppointmentDto(
     String note,
     Boolean isCalledToConfirm,
     Instant createdAt,
-    Instant updatedAt) {
-}
+    Instant updatedAt) {}

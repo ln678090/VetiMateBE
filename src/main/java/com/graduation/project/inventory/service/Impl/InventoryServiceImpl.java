@@ -39,39 +39,47 @@ public class InventoryServiceImpl implements InventoryService {
   @Override
   @Transactional
   public StockVoucherResp createImportVoucher(CreateImportVoucherReq req, UUID createdByUserId) {
-    Staff creator = staffRepository.findByUserIdAndActiveTrue(createdByUserId)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhân viên"));
+    Staff creator =
+        staffRepository
+            .findByUserIdAndActiveTrue(createdByUserId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhân viên"));
 
-    StockVoucher voucher = StockVoucher.builder()
-        .type(VoucherType.IMPORT)
-        .status(VoucherStatus.DRAFT)
-        .createdBy(creator)
-        .note(req.getNote())
-        .build();
+    StockVoucher voucher =
+        StockVoucher.builder()
+            .type(VoucherType.IMPORT)
+            .status(VoucherStatus.DRAFT)
+            .createdBy(creator)
+            .note(req.getNote())
+            .build();
 
     for (ImportVoucherItemReq itemReq : req.getItems()) {
       Product product = null;
       if (itemReq.getProductId() != null) {
-        product = productRepository.findById(itemReq.getProductId())
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
+        product =
+            productRepository
+                .findById(itemReq.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
       }
 
       Supplier supplier = null;
       if (itemReq.getSupplierId() != null) {
-        supplier = supplierRepository.findById(itemReq.getSupplierId())
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp"));
+        supplier =
+            supplierRepository
+                .findById(itemReq.getSupplierId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp"));
       }
 
       if (product == null && itemReq.getMedicineId() == null) {
         throw new IllegalArgumentException("Phải chọn sản phẩm hoặc thuốc");
       }
 
-      StockVoucherItem item = StockVoucherItem.builder()
-          .product(product)
-          .quantity(itemReq.getQuantity())
-          .unitPrice(itemReq.getImportPrice())
-          .note(itemReq.getNote())
-          .build();
+      StockVoucherItem item =
+          StockVoucherItem.builder()
+              .product(product)
+              .quantity(itemReq.getQuantity())
+              .unitPrice(itemReq.getImportPrice())
+              .note(itemReq.getNote())
+              .build();
 
       voucher.addItem(item);
     }
@@ -83,15 +91,19 @@ public class InventoryServiceImpl implements InventoryService {
   @Override
   @Transactional
   public StockVoucherResp approveVoucher(UUID voucherId, UUID approvedByUserId) {
-    StockVoucher voucher = voucherRepository.findById(voucherId)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu"));
+    StockVoucher voucher =
+        voucherRepository
+            .findById(voucherId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu"));
 
     if (voucher.getStatus() != VoucherStatus.DRAFT) {
       throw new IllegalStateException("Chỉ có thể duyệt phiếu ở trạng thái NHÁP");
     }
 
-    Staff approver = staffRepository.findByUserIdAndActiveTrue(approvedByUserId)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhân viên duyệt"));
+    Staff approver =
+        staffRepository
+            .findByUserIdAndActiveTrue(approvedByUserId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhân viên duyệt"));
 
     voucher.setStatus(VoucherStatus.APPROVED);
     voucher.setApprovedBy(approver);
@@ -100,14 +112,15 @@ public class InventoryServiceImpl implements InventoryService {
     // Update stock and create batches
     if (voucher.getType() == VoucherType.IMPORT) {
       for (StockVoucherItem item : voucher.getItems()) {
-        StockBatch batch = StockBatch.builder()
-            .product(item.getProduct())
-            .medicine(item.getMedicine())
-            .quantity(item.getQuantity())
-            .remainingQty(item.getQuantity())
-            .importPrice(item.getUnitPrice())
-            .build();
-        
+        StockBatch batch =
+            StockBatch.builder()
+                .product(item.getProduct())
+                .medicine(item.getMedicine())
+                .quantity(item.getQuantity())
+                .remainingQty(item.getQuantity())
+                .importPrice(item.getUnitPrice())
+                .build();
+
         batch = batchRepository.save(batch);
         item.setBatch(batch);
 
@@ -124,9 +137,7 @@ public class InventoryServiceImpl implements InventoryService {
 
   @Override
   public List<StockVoucherResp> getAllVouchers() {
-    return voucherRepository.findAll().stream()
-        .map(this::mapToResp)
-        .collect(Collectors.toList());
+    return voucherRepository.findAll().stream().map(this::mapToResp).collect(Collectors.toList());
   }
 
   public List<Supplier> getAllSuppliers() {

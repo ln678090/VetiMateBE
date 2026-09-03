@@ -43,12 +43,9 @@ public class ProductReq {
 
   private String galleryUrls;
 
-  @Builder.Default
-  private Boolean isFeatured = false;
-  
-  @Builder.Default
-  private Boolean isNew = false;
-  
-  @Builder.Default
-  private Boolean isActive = true;
+  @Builder.Default private Boolean isFeatured = false;
+
+  @Builder.Default private Boolean isNew = false;
+
+  @Builder.Default private Boolean isActive = true;
 }

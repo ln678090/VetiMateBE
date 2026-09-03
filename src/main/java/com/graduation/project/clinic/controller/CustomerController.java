@@ -6,17 +6,15 @@ import com.graduation.project.clinic.dto.req.CustomerRequest;
 import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.Instant;
-import java.util.UUID;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/clinic/customers")
@@ -26,8 +24,7 @@ public class CustomerController {
   private final CustomerService customerService;
 
   @GetMapping("/me/customer")
-  public ApiResp<CustomerDto> getMyCustomer(
-      Authentication auth) {
+  public ApiResp<CustomerDto> getMyCustomer(Authentication auth) {
     UUID userId = SecurityUtils.currentUserId(auth);
     CustomerDto dto = customerService.getOrCreateForCurrentUser(userId);
     return ApiResp.<CustomerDto>builder()
@@ -40,14 +37,15 @@ public class CustomerController {
   @PostMapping
   public ResponseEntity<ApiResp<CustomerDto>> create(@Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResp.<CustomerDto>builder().message("Tạo khách hàng thành công").data(dto).build());
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResp.<CustomerDto>builder().message("Tạo khách hàng thành công").data(dto).build());
   }
 
   // PUT /api/clinic/customers/{id} - Sửa khách hàng
   @PutMapping("/{id}")
-  public ResponseEntity<ApiResp<CustomerDto>> update(@PathVariable UUID id,
-      @Valid @RequestBody CustomerRequest request) {
+  public ResponseEntity<ApiResp<CustomerDto>> update(
+      @PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.update(id, request);
     return ResponseEntity.ok(
         ApiResp.<CustomerDto>builder().message("Cập nhật khách hàng thành công").data(dto).build());
@@ -66,15 +64,13 @@ public class CustomerController {
       @RequestParam(required = false) String keyword,
       @PageableDefault(size = 20) Pageable pageable) {
     Page<CustomerDto> page = customerService.search(keyword, pageable);
-    return ResponseEntity.ok(
-        ApiResp.<Page<CustomerDto>>builder().message("OK").data(page).build());
+    return ResponseEntity.ok(ApiResp.<Page<CustomerDto>>builder().message("OK").data(page).build());
   }
 
   // DELETE /api/clinic/customers/{id} - Xóa khách hàng
   @DeleteMapping("/{id}")
   public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
     customerService.delete(id);
-    return ResponseEntity.ok(
-        ApiResp.<Void>builder().message("Xóa khách hàng thành công").build());
+    return ResponseEntity.ok(ApiResp.<Void>builder().message("Xóa khách hàng thành công").build());
   }
 }

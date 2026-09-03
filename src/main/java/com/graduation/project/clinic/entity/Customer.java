@@ -2,12 +2,11 @@ package com.graduation.project.clinic.entity;
 
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "clinic_customers")
@@ -23,10 +22,7 @@ public class Customer {
   @Column(name = "id", updatable = false, nullable = false)
   private UUID id;
 
-  /**
-   * Link tới User nếu khách có tài khoản; nullable cho khách vãng lai (lễ tân
-   * tạo).
-   */
+  /** Link tới User nếu khách có tài khoản; nullable cho khách vãng lai (lễ tân tạo). */
   @Column(name = "user_id")
   private UUID userId;
 
@@ -45,7 +41,11 @@ public class Customer {
   @Column(name = "note", length = 500)
   private String note;
 
-  @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  @OneToMany(
+      mappedBy = "customer",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
   @Builder.Default
   private List<Pet> pets = new ArrayList<>();
 

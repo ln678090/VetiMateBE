@@ -8,7 +8,10 @@ import java.util.UUID;
 
 public interface InventoryService {
   StockVoucherResp createImportVoucher(CreateImportVoucherReq req, UUID createdByUserId);
+
   StockVoucherResp approveVoucher(UUID voucherId, UUID approvedByUserId);
+
   List<StockVoucherResp> getAllVouchers();
+
   List<Supplier> getAllSuppliers();
 }

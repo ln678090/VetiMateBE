@@ -2,14 +2,13 @@ package com.graduation.project.inventory.entity;
 
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "medicines")
@@ -33,6 +32,7 @@ public class Medicine {
 
   @Column(name = "min_stock", nullable = false, precision = 10, scale = 2)
   private BigDecimal minStock = BigDecimal.ZERO;
+
   @Column(name = "import_price", nullable = false, precision = 12, scale = 2)
   private BigDecimal importPrice = BigDecimal.ZERO;
 

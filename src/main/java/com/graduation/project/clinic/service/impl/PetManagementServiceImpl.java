@@ -10,51 +10,38 @@ import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.repository.specification.PetSpecification;
 import com.graduation.project.clinic.service.PetManagementService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class PetManagementServiceImpl
-    implements PetManagementService {
+public class PetManagementServiceImpl implements PetManagementService {
 
   private final PetRepository petRepository;
   private final CustomerRepository customerRepository;
 
   @Override
   public Page<PetManagementSummary> search(
-      String keyword,
-      PetSpecies species,
-      Boolean deleted,
-      UUID customerId,
-      Pageable pageable) {
-    return petRepository.findAll(
-        PetSpecification.managementFilter(
-            keyword,
-            species,
-            deleted,
-            customerId),
-        pageable).map(this::toSummary);
+      String keyword, PetSpecies species, Boolean deleted, UUID customerId, Pageable pageable) {
+    return petRepository
+        .findAll(PetSpecification.managementFilter(keyword, species, deleted, customerId), pageable)
+        .map(this::toSummary);
   }
 
   @Override
   public PetManagementSummary getById(UUID petId) {
-    return petRepository.findById(petId)
-        .map(this::toSummary)
-        .orElseThrow(this::petNotFound);
+    return petRepository.findById(petId).map(this::toSummary).orElseThrow(this::petNotFound);
   }
 
   @Override
   @Transactional
-  public PetManagementSummary create(
-      ManagementPetRequest request) {
+  public PetManagementSummary create(ManagementPetRequest request) {
     Customer customer = requireCustomer(request.customerId());
 
     Pet pet = new Pet();
@@ -67,9 +54,7 @@ public class PetManagementServiceImpl
 
   @Override
   @Transactional
-  public PetManagementSummary update(
-      UUID petId,
-      ManagementPetRequest request) {
+  public PetManagementSummary update(UUID petId, ManagementPetRequest request) {
     Pet pet = requirePetForUpdate(petId);
 
     if (pet.getDeletedAt() != null) {
@@ -109,19 +94,16 @@ public class PetManagementServiceImpl
   }
 
   private Customer requireCustomer(UUID customerId) {
-    return customerRepository.findById(customerId)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy chủ nuôi"));
+    return customerRepository
+        .findById(customerId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chủ nuôi"));
   }
 
   private Pet requirePetForUpdate(UUID petId) {
-    return petRepository.findByIdForUpdate(petId)
-        .orElseThrow(this::petNotFound);
+    return petRepository.findByIdForUpdate(petId).orElseThrow(this::petNotFound);
   }
 
-  private void applyRequest(
-      Pet pet,
-      ManagementPetRequest request) {
+  private void applyRequest(Pet pet, ManagementPetRequest request) {
     pet.setName(request.name().trim());
     pet.setSpecies(request.species());
     pet.setBreed(normalize(request.breed()));
@@ -141,16 +123,13 @@ public class PetManagementServiceImpl
         pet.getGender(),
         pet.getBirthDate(),
         pet.getWeightKg(),
-
         customer.getId(),
         customer.getFullName(),
         customer.getPhone(),
         customer.getEmail(),
-
         pet.getCurrentHealthStatus(),
         pet.getCurrentHealthNote(),
         pet.getLastExaminedAt(),
-
         pet.getDeletedAt() != null,
         pet.getDeletedAt());
   }
@@ -165,7 +144,6 @@ public class PetManagementServiceImpl
   }
 
   private ResourceNotFoundException petNotFound() {
-    return new ResourceNotFoundException(
-        "Không tìm thấy thú cưng");
+    return new ResourceNotFoundException("Không tìm thấy thú cưng");
   }
 }
