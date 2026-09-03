@@ -38,6 +38,9 @@ jobs:
       - name: Make mvnw executable
         run: chmod +x mvnw
 
+      - name: Run Spotless Code Format Check
+        run: ./mvnw spotless:check -B
+
       - name: Run Flyway migrate
         run: >
           ./mvnw flyway:migrate -B
