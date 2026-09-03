@@ -20,6 +20,7 @@ public record AppointmentDto(
     BigDecimal priceSnapshot,
     AppointmentStatus status,
     String note,
+    Boolean isCalledToConfirm,
     Instant createdAt,
     Instant updatedAt) {
 }

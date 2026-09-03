@@ -5,6 +5,7 @@ import com.graduation.project.auth.config.jwt.TokenService;
 import com.graduation.project.auth.dto.privateDto.TokenPair;
 import com.graduation.project.auth.dto.req.LoginRequest;
 import com.graduation.project.auth.dto.req.RegisterRequest;
+import com.graduation.project.auth.dto.req.ChangePasswordRequest;
 import com.graduation.project.auth.entity.Role;
 import com.graduation.project.auth.repository.RoleRepository;
 import com.graduation.project.auth.service.AuthService;
@@ -212,5 +213,27 @@ public class AuthServiceImpl implements AuthService {
     if (refreshToken == null || refreshToken.isEmpty())
       return;
     tokenService.deleteRefreshToken(refreshToken);
+  }
+
+  @Transactional
+  @Override
+  public void changePassword(UUID userId, ChangePasswordRequest request) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+
+    if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
+      throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");
+    }
+
+    if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+      throw new IllegalArgumentException("Mật khẩu mới không được trùng với mật khẩu cũ");
+    }
+
+    if (!request.newPassword().equals(request.confirmPassword())) {
+      throw new IllegalArgumentException("Mật khẩu xác nhận không khớp");
+    }
+
+    user.setPassword(passwordEncoder.encode(request.newPassword()));
+    userRepository.save(user);
   }
 }

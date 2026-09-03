@@ -1,0 +1,2 @@
+-- This file was merged into R__finalize_shop_interactions_and_orders.sql
+-- Left here intentionally as an empty file so Flyway validation passes.

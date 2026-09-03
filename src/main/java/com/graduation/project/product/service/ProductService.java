@@ -1,9 +1,11 @@
 package com.graduation.project.product.service;
 
+import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.req.ProductFilterRequest;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
 import java.util.List;
+import java.util.UUID;
 
 public interface ProductService {
 
@@ -18,4 +20,9 @@ public interface ProductService {
 
   /** Featured cho landing page */
   List<ProductResp> getFeaturedProducts(int limit);
+
+  // ===== Quản trị (Staff) =====
+  ProductResp createProduct(ProductReq req);
+  ProductResp updateProduct(UUID id, ProductReq req);
+  void deleteProduct(UUID id);
 }

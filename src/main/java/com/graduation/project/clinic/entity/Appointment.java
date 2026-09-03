@@ -56,6 +56,10 @@ public class Appointment {
   @Column(name = "note", length = 500)
   private String note;
 
+  @Column(name = "is_called_to_confirm", nullable = false)
+  @Builder.Default
+  private Boolean isCalledToConfirm = false;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 

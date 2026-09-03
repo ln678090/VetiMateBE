@@ -27,4 +27,5 @@ public record ProductResp(
     String imageUrl,
     String galleryUrls,
     Boolean isFeatured,
-    Boolean isNew) {}
+    Boolean isNew,
+    Boolean isActive) {}
