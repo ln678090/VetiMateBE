@@ -19,6 +19,18 @@ import java.util.UUID;
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UUID> {
   Optional<MedicalRecord> findByAppointmentId(UUID appointmentId);
 
+  @Query(value = """
+      SELECT mr.*
+      FROM medical_records mr
+      JOIN staff st
+        ON st.id = mr.doctor_id
+      WHERE mr.id = :recordId
+        AND st.user_id = :userId
+      """, nativeQuery = true)
+  Optional<MedicalRecord> findOwnedById(
+      @Param("recordId") UUID recordId,
+      @Param("userId") UUID userId);
+
   @Query("""
       select medicalRecord
       from MedicalRecord medicalRecord
