@@ -11,8 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("ci")
 class SchemaValidationTest {
 
-  @MockBean
-  private RedisTemplate<String, String> redisTemplate;
+  @MockBean private RedisTemplate<String, String> redisTemplate;
 
   @Test
   void contextLoads() {
