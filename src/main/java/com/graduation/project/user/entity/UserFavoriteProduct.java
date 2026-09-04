@@ -30,31 +30,31 @@ import org.hibernate.annotations.CreationTimestamp;
 @IdClass(UserFavoriteProduct.UserFavoriteProductId.class)
 public class UserFavoriteProduct {
 
-    @Id
-    @Column(name = "user_id")
+  @Id
+  @Column(name = "user_id")
+  private UUID userId;
+
+  @Id
+  @Column(name = "product_id")
+  private UUID productId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", insertable = false, updatable = false)
+  private User user;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "product_id", insertable = false, updatable = false)
+  private Product product;
+
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  private OffsetDateTime createdAt;
+
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class UserFavoriteProductId implements Serializable {
     private UUID userId;
-
-    @Id
-    @Column(name = "product_id")
     private UUID productId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", insertable = false, updatable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", insertable = false, updatable = false)
-    private Product product;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private OffsetDateTime createdAt;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UserFavoriteProductId implements Serializable {
-        private UUID userId;
-        private UUID productId;
-    }
+  }
 }

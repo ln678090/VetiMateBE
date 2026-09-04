@@ -25,45 +25,44 @@ public class TokenService {
 
   public String generateAccessToken(UUID userId, String roles) {
     Instant now = Instant.now();
-    JwtClaimsSet claims = JwtClaimsSet.builder()
-        .issuer("connecthub-api")
-        .issuedAt(now)
-        .expiresAt(now.plus(15, ChronoUnit.MINUTES)) // Hết hạn sau 15 phút
-        .subject(userId.toString())
-        .claim("roles", roles)
-        .build();
+    JwtClaimsSet claims =
+        JwtClaimsSet.builder()
+            .issuer("connecthub-api")
+            .issuedAt(now)
+            .expiresAt(now.plus(15, ChronoUnit.MINUTES)) // Hết hạn sau 15 phút
+            .subject(userId.toString())
+            .claim("roles", roles)
+            .build();
     return this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
   public String generateInternalToken(UUID userId) {
     Instant now = Instant.now();
 
-    JwtClaimsSet claims = JwtClaimsSet.builder()
-        .issuer("connecthub-internal")
-        .issuedAt(now)
-        .expiresAt(now.plus(5, ChronoUnit.MINUTES)) // ngắn thôi cho an toàn
-        .subject(userId.toString())
-        .claim("scope", "internal")
-        .build();
+    JwtClaimsSet claims =
+        JwtClaimsSet.builder()
+            .issuer("connecthub-internal")
+            .issuedAt(now)
+            .expiresAt(now.plus(5, ChronoUnit.MINUTES)) // ngắn thôi cho an toàn
+            .subject(userId.toString())
+            .claim("scope", "internal")
+            .build();
 
     return this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
   }
 
   public String generateAccessTokenFromAuth(Authentication authentication, UUID userId) {
-    String roles = authentication.getAuthorities().stream()
-        .map(GrantedAuthority::getAuthority)
-        .collect(Collectors.joining(" "));
+    String roles =
+        authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .collect(Collectors.joining(" "));
     return generateAccessToken(userId, roles);
   }
 
   public String generateRefreshToken(UUID userId) {
     String refreshToken = UUID.randomUUID().toString();
     String redisKey = REFRESH_TOKEN_KEY_PREFIX.key() + ":" + refreshToken;
-    redisTemplate.opsForValue().set(
-        redisKey,
-        userId.toString(),
-        30,
-        TimeUnit.DAYS);
+    redisTemplate.opsForValue().set(redisKey, userId.toString(), 30, TimeUnit.DAYS);
     return refreshToken;
   }
 
@@ -92,8 +91,7 @@ public class TokenService {
   //
   public boolean validateRefreshToken(String refreshToken) {
     Boolean a = redisTemplate.hasKey(REFRESH_TOKEN_KEY_PREFIX.key() + ":" + refreshToken);
-    if (a != null)
-      return a;
+    if (a != null) return a;
     return false;
   }
 
@@ -103,12 +101,12 @@ public class TokenService {
     String userId = redisTemplate.opsForValue().get(redisKey);
 
     if (userId == null) {
-      throw new IllegalArgumentException(
-          "Refresh token không hợp lệ hoặc đã hết hạn");
+      throw new IllegalArgumentException("Refresh token không hợp lệ hoặc đã hết hạn");
     }
 
     return UUID.fromString(userId);
   }
+
   // public UUID getUserIdFromRefreshToken(String refreshToken) {
   // String userIdStr =
   // redisTemplate.opsForValue().get(REFRESH_TOKEN_KEY_PREFIX.key() + ":" +

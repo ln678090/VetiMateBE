@@ -1,7 +1,7 @@
 package com.graduation.project.product.service;
 
-import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.req.ProductFilterRequest;
+import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
 import com.graduation.project.product.dto.resp.ProductReviewResp;
@@ -27,6 +27,8 @@ public interface ProductService {
 
   // ===== Quản trị (Staff) =====
   ProductResp createProduct(ProductReq req);
+
   ProductResp updateProduct(UUID id, ProductReq req);
+
   void deleteProduct(UUID id);
 }

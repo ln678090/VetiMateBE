@@ -1,8 +1,5 @@
 package com.graduation.project.clinic.controller;
 
-import com.graduation.project.auth.utils.SecurityUtils;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
 import com.graduation.project.clinic.service.OrderService;
@@ -15,13 +12,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderService orderService;
+  private final OrderService orderService;
 
     @PostMapping("/checkout")
     @PreAuthorize("isAuthenticated()")
@@ -112,5 +114,3 @@ public class OrderController {
         return ResponseEntity.ok(orderService.reviewOrder(id, UUID.fromString(jwt.getSubject()), request));
     }
 }
-
-

@@ -8,6 +8,9 @@ import com.graduation.project.clinic.entity.AppointmentStatus;
 import com.graduation.project.clinic.service.AppointmentService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,10 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/clinic/appointments")
@@ -50,16 +49,18 @@ public class AppointmentController {
       @Valid @RequestBody CreateAppointmentRequest request) {
     AppointmentDto appointment = appointmentService.create(request);
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResp.<AppointmentDto>builder()
-            .message("Đặt lịch khám thành công")
-            .data(appointment)
-            .build());
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResp.<AppointmentDto>builder()
+                .message("Đặt lịch khám thành công")
+                .data(appointment)
+                .build());
   }
 
   // @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST', 'DOCTOR')")
   @GetMapping("/management")
-  @PreAuthorize("""
+  @PreAuthorize(
+      """
       hasAnyAuthority(
           'ROLE_ADMIN',
           'ROLE_MANAGER',
@@ -68,11 +69,14 @@ public class AppointmentController {
       )
       """)
   public ResponseEntity<ApiResp<Page<AppointmentDto>>> getForManagement(
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate,
       @RequestParam(required = false) AppointmentStatus status,
       @PageableDefault(size = 100, sort = "startAt") Pageable pageable) {
-    Page<AppointmentDto> appointments = appointmentService.getForManagement(startDate, endDate, status, pageable);
+    Page<AppointmentDto> appointments =
+        appointmentService.getForManagement(startDate, endDate, status, pageable);
 
     return ResponseEntity.ok(
         ApiResp.<Page<AppointmentDto>>builder()
@@ -82,8 +86,7 @@ public class AppointmentController {
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResp<AppointmentDto>> getById(
-      @PathVariable UUID id) {
+  public ResponseEntity<ApiResp<AppointmentDto>> getById(@PathVariable UUID id) {
     return ResponseEntity.ok(
         ApiResp.<AppointmentDto>builder()
             .message("OK")
@@ -93,27 +96,23 @@ public class AppointmentController {
 
   @GetMapping
   public ResponseEntity<ApiResp<Page<AppointmentDto>>> getByCustomer(
-      @RequestParam UUID customerId,
-      @PageableDefault(size = 20) Pageable pageable) {
+      @RequestParam UUID customerId, @PageableDefault(size = 20) Pageable pageable) {
     Page<AppointmentDto> appointments = appointmentService.getByCustomer(customerId, pageable);
 
     return ResponseEntity.ok(
-        ApiResp.<Page<AppointmentDto>>builder()
-            .message("OK")
-            .data(appointments)
-            .build());
+        ApiResp.<Page<AppointmentDto>>builder().message("OK").data(appointments).build());
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("""
+  @PreAuthorize(
+      """
       hasAnyAuthority(
           'ROLE_ADMIN',
           'ROLE_RECEPTIONIST'
       )
       """)
   public ResponseEntity<ApiResp<AppointmentDto>> updateStatus(
-      @PathVariable UUID id,
-      @Valid @RequestBody UpdateAppointmentStatusRequest request) {
+      @PathVariable UUID id, @Valid @RequestBody UpdateAppointmentStatusRequest request) {
     AppointmentDto appointment = appointmentService.updateStatus(id, request);
 
     return ResponseEntity.ok(
@@ -126,8 +125,7 @@ public class AppointmentController {
   @PatchMapping("/{id}/call-status")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<AppointmentDto>> updateCallStatus(
-      @PathVariable UUID id,
-      @RequestParam boolean isCalled) {
+      @PathVariable UUID id, @RequestParam boolean isCalled) {
     AppointmentDto appointment = appointmentService.updateCallStatus(id, isCalled);
 
     return ResponseEntity.ok(

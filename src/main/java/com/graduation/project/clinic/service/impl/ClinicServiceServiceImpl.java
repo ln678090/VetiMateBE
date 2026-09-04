@@ -6,13 +6,12 @@ import com.graduation.project.clinic.entity.ClinicService;
 import com.graduation.project.clinic.mapper.ClinicServiceMapper;
 import com.graduation.project.clinic.repository.ClinicServiceRepository;
 import com.graduation.project.clinic.service.ClinicServiceService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,21 +23,24 @@ public class ClinicServiceServiceImpl implements ClinicServiceService {
   @Override
   @Transactional
   public ClinicServiceDto create(ClinicServiceRequest request) {
-    ClinicService service = ClinicService.builder()
-        .name(request.name())
-        .description(request.description())
-        .price(request.price())
-        .durationMin(request.durationMin())
-        .isActive(request.isActive() == null || request.isActive()) // default true
-        .build();
+    ClinicService service =
+        ClinicService.builder()
+            .name(request.name())
+            .description(request.description())
+            .price(request.price())
+            .durationMin(request.durationMin())
+            .isActive(request.isActive() == null || request.isActive()) // default true
+            .build();
     return clinicServiceMapper.toDto(clinicServiceRepository.save(service));
   }
 
   @Override
   @Transactional
   public ClinicServiceDto update(UUID id, ClinicServiceRequest request) {
-    ClinicService service = clinicServiceRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy dịch vụ: " + id));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy dịch vụ: " + id));
     service.setName(request.name());
     service.setDescription(request.description());
     service.setPrice(request.price());
@@ -52,17 +54,20 @@ public class ClinicServiceServiceImpl implements ClinicServiceService {
   @Override
   @Transactional(readOnly = true)
   public ClinicServiceDto getById(UUID id) {
-    ClinicService service = clinicServiceRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy dịch vụ: " + id));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy dịch vụ: " + id));
     return clinicServiceMapper.toDto(service);
   }
 
   @Override
   @Transactional(readOnly = true)
   public Page<ClinicServiceDto> list(boolean activeOnly, Pageable pageable) {
-    Page<ClinicService> page = activeOnly
-        ? clinicServiceRepository.findByIsActiveTrue(pageable)
-        : clinicServiceRepository.findAll(pageable);
+    Page<ClinicService> page =
+        activeOnly
+            ? clinicServiceRepository.findByIsActiveTrue(pageable)
+            : clinicServiceRepository.findAll(pageable);
     return page.map(clinicServiceMapper::toDto);
   }
 

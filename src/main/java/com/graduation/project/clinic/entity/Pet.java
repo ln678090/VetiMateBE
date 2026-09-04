@@ -3,13 +3,12 @@ package com.graduation.project.clinic.entity;
 import com.graduation.project.clinic.enums.PetHealthStatus;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "clinic_pets")
@@ -58,8 +57,10 @@ public class Pet {
 
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
   @Column(name = "deleted_at")
   private Instant deletedAt;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "current_health_status", length = 30)
   private PetHealthStatus currentHealthStatus;
@@ -96,8 +97,8 @@ public class Pet {
     this.updatedAt = Instant.now();
   }
 
-  public void updateHealthSnapshot(PetHealthStatus healthStatus, BigDecimal weightKg, String healthNote,
-      Instant examinedAt) {
+  public void updateHealthSnapshot(
+      PetHealthStatus healthStatus, BigDecimal weightKg, String healthNote, Instant examinedAt) {
     this.currentHealthStatus = Objects.requireNonNull(healthStatus, "healthStatus");
 
     if (weightKg != null) {
@@ -106,7 +107,6 @@ public class Pet {
 
     this.currentHealthNote = normalizeNullable(healthNote);
     this.lastExaminedAt = Objects.requireNonNull(examinedAt, "examinedAt");
-
   }
 
   private String normalizeNullable(String value) {
@@ -116,6 +116,5 @@ public class Pet {
 
     String normalized = value.trim();
     return normalized.isEmpty() ? null : normalized;
-
   }
 }

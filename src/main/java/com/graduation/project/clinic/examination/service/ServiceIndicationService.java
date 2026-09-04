@@ -11,14 +11,13 @@ import com.graduation.project.clinic.examination.entity.ServiceIndicationStatus;
 import com.graduation.project.clinic.examination.repository.MedicalRecordRepository;
 import com.graduation.project.clinic.examination.repository.ServiceIndicationRepository;
 import com.graduation.project.clinic.repository.ClinicServiceRepository;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,53 +28,42 @@ public class ServiceIndicationService {
   private final ClinicServiceRepository clinicServiceRepository;
 
   @Transactional(readOnly = true)
-  public List<Response> getAll(
-      UUID medicalRecordId,
-      UUID currentUserId) {
+  public List<Response> getAll(UUID medicalRecordId, UUID currentUserId) {
     getOwnedEditableRecord(medicalRecordId, currentUserId);
 
     return indicationRepository
-        .findAllByMedicalRecordIdOrderByCreatedAtAsc(
-            medicalRecordId)
+        .findAllByMedicalRecordIdOrderByCreatedAtAsc(medicalRecordId)
         .stream()
         .map(this::toResponse)
         .toList();
   }
 
   @Transactional
-  public Response create(
-      UUID medicalRecordId,
-      CreateRequest request,
-      UUID currentUserId) {
-    MedicalRecord medicalRecord = getOwnedEditableRecord(
-        medicalRecordId,
-        currentUserId);
+  public Response create(UUID medicalRecordId, CreateRequest request, UUID currentUserId) {
+    MedicalRecord medicalRecord = getOwnedEditableRecord(medicalRecordId, currentUserId);
 
-    ClinicService clinicService = clinicServiceRepository
-        .findByIdAndIsActiveTrue(
-            request.serviceId())
-        .orElseThrow(() -> new ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Dịch vụ không tồn tại hoặc đã ngừng hoạt động"));
+    ClinicService clinicService =
+        clinicServiceRepository
+            .findByIdAndIsActiveTrue(request.serviceId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Dịch vụ không tồn tại hoặc đã ngừng hoạt động"));
 
-    boolean duplicated = indicationRepository
-        .existsByMedicalRecordIdAndServiceIdAndStatus(
-            medicalRecordId,
-            request.serviceId(),
-            ServiceIndicationStatus.PENDING);
+    boolean duplicated =
+        indicationRepository.existsByMedicalRecordIdAndServiceIdAndStatus(
+            medicalRecordId, request.serviceId(), ServiceIndicationStatus.PENDING);
 
     if (duplicated) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
-          "Dịch vụ này đang có chỉ định chờ xử lý");
+          HttpStatus.CONFLICT, "Dịch vụ này đang có chỉ định chờ xử lý");
     }
 
     ServiceIndication indication = new ServiceIndication();
 
     indication.setMedicalRecord(medicalRecord);
     indication.setService(clinicService);
-    indication.setStatus(
-        ServiceIndicationStatus.PENDING);
+    indication.setStatus(ServiceIndicationStatus.PENDING);
 
     ServiceIndication saved = indicationRepository.save(indication);
 
@@ -83,90 +71,65 @@ public class ServiceIndicationService {
   }
 
   @Transactional
-  public Response complete(
-      UUID indicationId,
-      CompleteRequest request,
-      UUID currentUserId) {
-    ServiceIndication indication = getOwnedPendingIndication(
-        indicationId,
-        currentUserId);
+  public Response complete(UUID indicationId, CompleteRequest request, UUID currentUserId) {
+    ServiceIndication indication = getOwnedPendingIndication(indicationId, currentUserId);
 
-    requireEditableRecord(
-        indication.getMedicalRecord());
+    requireEditableRecord(indication.getMedicalRecord());
 
-    indication.setResultNote(
-        request.resultNote().trim());
-    indication.setStatus(
-        ServiceIndicationStatus.DONE);
+    indication.setResultNote(request.resultNote().trim());
+    indication.setStatus(ServiceIndicationStatus.DONE);
 
     return toResponse(indication);
   }
 
   @Transactional
-  public Response cancel(
-      UUID indicationId,
-      UUID currentUserId) {
-    ServiceIndication indication = getOwnedPendingIndication(
-        indicationId,
-        currentUserId);
+  public Response cancel(UUID indicationId, UUID currentUserId) {
+    ServiceIndication indication = getOwnedPendingIndication(indicationId, currentUserId);
 
-    requireEditableRecord(
-        indication.getMedicalRecord());
+    requireEditableRecord(indication.getMedicalRecord());
 
-    indication.setStatus(
-        ServiceIndicationStatus.CANCELLED);
+    indication.setStatus(ServiceIndicationStatus.CANCELLED);
     indication.setResultNote(null);
 
     return toResponse(indication);
   }
 
-  private MedicalRecord getOwnedEditableRecord(
-      UUID medicalRecordId,
-      UUID currentUserId) {
-    MedicalRecord medicalRecord = medicalRecordRepository
-        .findOwnedById(
-            medicalRecordId,
-            currentUserId)
-        .orElseThrow(() -> new ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Không tìm thấy phiếu khám"));
+  private MedicalRecord getOwnedEditableRecord(UUID medicalRecordId, UUID currentUserId) {
+    MedicalRecord medicalRecord =
+        medicalRecordRepository
+            .findOwnedById(medicalRecordId, currentUserId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiếu khám"));
 
     requireEditableRecord(medicalRecord);
 
     return medicalRecord;
   }
 
-  private ServiceIndication getOwnedPendingIndication(
-      UUID indicationId,
-      UUID currentUserId) {
-    ServiceIndication indication = indicationRepository
-        .findOwnedByIdForUpdate(
-            indicationId,
-            currentUserId)
-        .orElseThrow(() -> new ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Không tìm thấy chỉ định"));
+  private ServiceIndication getOwnedPendingIndication(UUID indicationId, UUID currentUserId) {
+    ServiceIndication indication =
+        indicationRepository
+            .findOwnedByIdForUpdate(indicationId, currentUserId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy chỉ định"));
 
     if (indication.getStatus() != ServiceIndicationStatus.PENDING) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
-          "Chỉ có thể cập nhật chỉ định đang chờ xử lý");
+          HttpStatus.CONFLICT, "Chỉ có thể cập nhật chỉ định đang chờ xử lý");
     }
 
     return indication;
   }
 
-  private void requireEditableRecord(
-      MedicalRecord medicalRecord) {
+  private void requireEditableRecord(MedicalRecord medicalRecord) {
     if (medicalRecord.getStatus() != MedicalRecordStatus.IN_PROGRESS) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
-          "Chỉ được cập nhật chỉ định khi phiếu khám đang thực hiện");
+          HttpStatus.CONFLICT, "Chỉ được cập nhật chỉ định khi phiếu khám đang thực hiện");
     }
   }
 
-  private Response toResponse(
-      ServiceIndication indication) {
+  private Response toResponse(ServiceIndication indication) {
     ClinicService service = indication.getService();
 
     return new Response(

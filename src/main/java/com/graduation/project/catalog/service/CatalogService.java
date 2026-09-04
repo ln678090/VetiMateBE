@@ -24,10 +24,15 @@ public interface CatalogService {
 
   // ===== Quản lý =====
   CategoryResp createCategory(com.graduation.project.catalog.dto.req.CategoryReq req);
-  CategoryResp updateCategory(java.util.UUID id, com.graduation.project.catalog.dto.req.CategoryReq req);
+
+  CategoryResp updateCategory(
+      java.util.UUID id, com.graduation.project.catalog.dto.req.CategoryReq req);
+
   void deleteCategory(java.util.UUID id);
 
   BrandResp createBrand(com.graduation.project.catalog.dto.req.BrandReq req);
+
   BrandResp updateBrand(java.util.UUID id, com.graduation.project.catalog.dto.req.BrandReq req);
+
   void deleteBrand(java.util.UUID id);
 }

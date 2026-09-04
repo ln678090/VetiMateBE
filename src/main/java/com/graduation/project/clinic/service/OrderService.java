@@ -3,7 +3,6 @@ package com.graduation.project.clinic.service;
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
 import com.graduation.project.clinic.dto.req.POSCheckoutRequest;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

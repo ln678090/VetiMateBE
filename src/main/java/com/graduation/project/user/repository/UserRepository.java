@@ -3,7 +3,6 @@ package com.graduation.project.user.repository;
 import com.graduation.project.user.entity.User;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,7 +20,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
   @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
   Optional<User> findByEmail(String email);
 
-  @Query("""
+  @Query(
+      """
       select user
       from User user
       where user.enabled = true
@@ -47,7 +47,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                 like concat('%', :keyword, '%')
         )
       """)
-  Page<User> findEligibleForStaff(
-      @Param("keyword") String keyword,
-      Pageable pageable);
+  Page<User> findEligibleForStaff(@Param("keyword") String keyword, Pageable pageable);
 }

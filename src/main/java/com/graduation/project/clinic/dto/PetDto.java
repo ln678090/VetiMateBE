@@ -1,11 +1,10 @@
 package com.graduation.project.clinic.dto;
 
+import com.graduation.project.clinic.entity.PetSpecies;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
-
-import com.graduation.project.clinic.entity.PetSpecies;
 
 public record PetDto(
     UUID id,
@@ -19,5 +18,4 @@ public record PetDto(
     BigDecimal weightKg,
     String note,
     Instant createdAt,
-    Instant updatedAt) {
-}
+    Instant updatedAt) {}

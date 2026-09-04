@@ -29,30 +29,30 @@ import lombok.Setter;
 @IdClass(UserViewedProduct.UserViewedProductId.class)
 public class UserViewedProduct {
 
-    @Id
-    @Column(name = "user_id")
+  @Id
+  @Column(name = "user_id")
+  private UUID userId;
+
+  @Id
+  @Column(name = "product_id")
+  private UUID productId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", insertable = false, updatable = false)
+  private User user;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "product_id", insertable = false, updatable = false)
+  private Product product;
+
+  @Column(name = "viewed_at")
+  private OffsetDateTime viewedAt;
+
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class UserViewedProductId implements Serializable {
     private UUID userId;
-
-    @Id
-    @Column(name = "product_id")
     private UUID productId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", insertable = false, updatable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", insertable = false, updatable = false)
-    private Product product;
-
-    @Column(name = "viewed_at")
-    private OffsetDateTime viewedAt;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UserViewedProductId implements Serializable {
-        private UUID userId;
-        private UUID productId;
-    }
+  }
 }

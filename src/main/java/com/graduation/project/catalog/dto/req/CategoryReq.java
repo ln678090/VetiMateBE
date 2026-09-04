@@ -12,6 +12,6 @@ public class CategoryReq {
   private String description;
 
   private UUID parentId;
-  
+
   private Boolean isActive = true;
 }

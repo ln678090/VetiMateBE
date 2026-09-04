@@ -5,13 +5,11 @@ import com.graduation.project.auth.exception.CustomAccessDeniedHandlerOauth2;
 import com.graduation.project.auth.exception.CustomAuthenticationEntryPointOauth2;
 import com.graduation.project.auth.keys.RsaKeyProperties;
 import com.graduation.project.user.repository.UserRepository;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,12 +31,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -97,10 +92,10 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       CustomAuthenticationEntryPointOauth2 entryPointOauth2,
-      CustomAccessDeniedHandlerOauth2 accessDeniedHandlerOauth2) throws Exception {
+      CustomAccessDeniedHandlerOauth2 accessDeniedHandlerOauth2)
+      throws Exception {
 
-    return http
-        .csrf(AbstractHttpConfigurer::disable)
+    return http.csrf(AbstractHttpConfigurer::disable)
         .cors(Customizer.withDefaults())
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -119,8 +114,8 @@ public class SecurityConfig {
         // .jwt(Customizer.withDefaults())
         // .authenticationEntryPoint(entryPointOauth2)
         // .accessDeniedHandler(accessDeniedHandlerOauth2))
-        .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();
   }
 
@@ -145,28 +140,28 @@ public class SecurityConfig {
     return jwt -> {
       Object rolesClaim = jwt.getClaim("roles");
 
-      List<String> roles = switch (rolesClaim) {
-        case String role -> Arrays.stream(role.split("[,\\s]+"))
-            .filter(value -> !value.isBlank())
-            .toList();
+      List<String> roles =
+          switch (rolesClaim) {
+            case String role ->
+                Arrays.stream(role.split("[,\\s]+")).filter(value -> !value.isBlank()).toList();
 
-        case Collection<?> roleCollection -> roleCollection.stream()
-            .map(String::valueOf)
-            .filter(value -> !value.isBlank())
-            .toList();
+            case Collection<?> roleCollection ->
+                roleCollection.stream()
+                    .map(String::valueOf)
+                    .filter(value -> !value.isBlank())
+                    .toList();
 
-        case null -> List.of();
+            case null -> List.of();
 
-        default -> List.of(String.valueOf(rolesClaim));
-      };
+            default -> List.of(String.valueOf(rolesClaim));
+          };
 
-      Collection<GrantedAuthority> authorities = roles.stream()
-          .map(role -> role.startsWith("ROLE_")
-              ? role
-              : "ROLE_" + role)
-          .map(SimpleGrantedAuthority::new)
-          .map(GrantedAuthority.class::cast)
-          .toList();
+      Collection<GrantedAuthority> authorities =
+          roles.stream()
+              .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+              .map(SimpleGrantedAuthority::new)
+              .map(GrantedAuthority.class::cast)
+              .toList();
 
       // Chỉ dùng tạm để xác minh, sau đó xóa.
       // System.out.println(
@@ -178,10 +173,7 @@ public class SecurityConfig {
           jwt.getSubject(),
           rolesClaim,
           authorities);
-      return new JwtAuthenticationToken(
-          jwt,
-          authorities,
-          jwt.getSubject());
+      return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
     };
   }
 
@@ -206,10 +198,11 @@ public class SecurityConfig {
 
   @Bean
   public UserDetailsService userDetailsService(UserRepository userRepository) {
-    return email -> userRepository
-        .findByEmail(email)
-        .map(CustomUserDetails::fromUser)
-        .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+    return email ->
+        userRepository
+            .findByEmail(email)
+            .map(CustomUserDetails::fromUser)
+            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
   }
 
   @Bean

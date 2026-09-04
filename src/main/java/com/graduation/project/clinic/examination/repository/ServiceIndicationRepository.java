@@ -1,20 +1,22 @@
 package com.graduation.project.clinic.examination.repository;
 
 import com.graduation.project.clinic.examination.entity.ServiceIndication;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 public interface ServiceIndicationRepository extends JpaRepository<ServiceIndication, UUID> {
 
-  @EntityGraph(attributePaths = { "service" })
+  @EntityGraph(attributePaths = {"service"})
   List<ServiceIndication> findAllByMedicalRecordIdOrderByCreatedAtAsc(UUID medicalRecordId);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT si.*
       FROM service_indications si
       JOIN medical_records mr
@@ -24,14 +26,13 @@ public interface ServiceIndicationRepository extends JpaRepository<ServiceIndica
       WHERE si.id = :indicationId
         AND st.user_id = :userId
       FOR UPDATE
-      """, nativeQuery = true)
+      """,
+      nativeQuery = true)
   Optional<ServiceIndication> findOwnedByIdForUpdate(
-      @Param("indicationId") UUID indicationId,
-      @Param("userId") UUID userId);
+      @Param("indicationId") UUID indicationId, @Param("userId") UUID userId);
 
   boolean existsByMedicalRecordIdAndServiceIdAndStatus(
       UUID medicalRecordId,
       UUID serviceId,
       com.graduation.project.clinic.examination.entity.ServiceIndicationStatus status);
-
 }

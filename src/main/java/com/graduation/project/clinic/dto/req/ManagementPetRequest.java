@@ -6,23 +6,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
 public record ManagementPetRequest(
     @NotNull UUID customerId,
-
     @NotBlank @Size(max = 100) String name,
-
     @NotNull PetSpecies species,
-
     @Size(max = 100) String breed,
-
     @Size(max = 20) String gender,
-
     @PastOrPresent LocalDate birthDate,
-
-    @DecimalMin("0.01") BigDecimal weightKg) {
-}
+    @DecimalMin("0.01") BigDecimal weightKg) {}

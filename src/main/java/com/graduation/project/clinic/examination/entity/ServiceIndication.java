@@ -1,15 +1,13 @@
-
 package com.graduation.project.clinic.examination.entity;
 
 import com.graduation.project.clinic.entity.ClinicService;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Getter
 @Setter

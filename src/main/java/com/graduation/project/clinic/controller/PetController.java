@@ -4,20 +4,19 @@ import com.graduation.project.auth.utils.SecurityUtils;
 import com.graduation.project.clinic.dto.CustomerDto;
 import com.graduation.project.clinic.dto.PetDto;
 import com.graduation.project.clinic.dto.req.PetRequest;
-import com.graduation.project.clinic.entity.Customer;
 import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.clinic.service.PetService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
-import java.util.UUID;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/clinic/pets")
@@ -31,14 +30,14 @@ public class PetController {
   @PostMapping
   public ResponseEntity<ApiResp<PetDto>> create(@Valid @RequestBody PetRequest request) {
     PetDto dto = petService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResp.<PetDto>builder().message("Tạo pet thành công").data(dto).build());
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResp.<PetDto>builder().message("Tạo pet thành công").data(dto).build());
   }
 
   // PUT /api/clinic/pets/{id} - Sửa pet
   @PutMapping("/{id}")
-  public ResponseEntity<ApiResp<PetDto>> update(@PathVariable UUID id,
-      @Valid @RequestBody PetRequest request) {
+  public ResponseEntity<ApiResp<PetDto>> update(
+      @PathVariable UUID id, @Valid @RequestBody PetRequest request) {
     PetDto dto = petService.update(id, request);
     return ResponseEntity.ok(
         ApiResp.<PetDto>builder().message("Cập nhật pet thành công").data(dto).build());
@@ -54,18 +53,14 @@ public class PetController {
   // GET /api/clinic/pets?customerId= - List pet theo chủ (paged)
   @GetMapping
   public ResponseEntity<ApiResp<Page<PetDto>>> getByCustomer(
-      @RequestParam UUID customerId,
-      @PageableDefault(size = 20) Pageable pageable) {
+      @RequestParam UUID customerId, @PageableDefault(size = 20) Pageable pageable) {
     Page<PetDto> page = petService.getByCustomer(customerId, pageable);
-    return ResponseEntity.ok(
-        ApiResp.<Page<PetDto>>builder().message("OK").data(page).build());
+    return ResponseEntity.ok(ApiResp.<Page<PetDto>>builder().message("OK").data(page).build());
   }
 
   @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void deletePet(
-      @PathVariable UUID id,
-      Authentication auth) {
+  public void deletePet(@PathVariable UUID id, Authentication auth) {
     UUID userId = SecurityUtils.currentUserId(auth);
     CustomerDto customer = customerService.getOrCreateForCurrentUser(userId);
     petService.softDelete(id, customer.id());
