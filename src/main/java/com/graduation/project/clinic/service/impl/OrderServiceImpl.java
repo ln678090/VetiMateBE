@@ -89,37 +89,7 @@ public class OrderServiceImpl implements OrderService {
     }
     invoice.setNote(note);
 
-        invoice.setSubtotal(total);
-        
-        BigDecimal discount = BigDecimal.ZERO;
-        if (request.getUserVoucherId() != null) {
-            com.graduation.project.loyalty.entity.UserVoucher uv = userVoucherRepository.findById(request.getUserVoucherId())
-                    .orElseThrow(() -> new RuntimeException("Voucher not found"));
-            if (uv.getIsUsed()) throw new RuntimeException("Voucher already used");
-            if (!uv.getUser().getId().equals(currentUserId)) throw new RuntimeException("Not your voucher");
-            
-            com.graduation.project.loyalty.entity.Voucher v = uv.getVoucher();
-            if (v.getMinOrderAmount() != null && total.compareTo(v.getMinOrderAmount()) < 0) {
-                throw new RuntimeException("Order amount not enough for this voucher");
-            }
-            
-            if (v.getDiscountType() == com.graduation.project.loyalty.entity.DiscountType.FIXED) {
-                discount = v.getDiscountValue();
-            } else {
-                discount = total.multiply(v.getDiscountValue()).divide(new BigDecimal("100"));
-                if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
-                    discount = v.getMaxDiscount();
-                }
-            }
-            
-            uv.setIsUsed(true);
-            uv.setUsedAt(java.time.LocalDateTime.now());
-            userVoucherRepository.save(uv);
-        }
-        
-        invoice.setDiscountAmount(discount);
-        invoice.setTotalAmount(total.subtract(discount).max(BigDecimal.ZERO));
-
+    BigDecimal total = BigDecimal.ZERO;
     for (CheckoutRequest.CartItemReq itemReq : request.getItems()) {
       Product product =
           productRepository
@@ -141,7 +111,35 @@ public class OrderServiceImpl implements OrderService {
     }
 
     invoice.setSubtotal(total);
-    invoice.setTotalAmount(total);
+    
+    BigDecimal discount = BigDecimal.ZERO;
+    if (request.getUserVoucherId() != null) {
+        com.graduation.project.loyalty.entity.UserVoucher uv = userVoucherRepository.findById(request.getUserVoucherId())
+                .orElseThrow(() -> new RuntimeException("Voucher not found"));
+        if (uv.getIsUsed()) throw new RuntimeException("Voucher already used");
+        if (!uv.getUser().getId().equals(currentUserId)) throw new RuntimeException("Not your voucher");
+        
+        com.graduation.project.loyalty.entity.Voucher v = uv.getVoucher();
+        if (v.getMinOrderAmount() != null && total.compareTo(v.getMinOrderAmount()) < 0) {
+            throw new RuntimeException("Order amount not enough for this voucher");
+        }
+        
+        if (v.getDiscountType() == com.graduation.project.loyalty.entity.DiscountType.FIXED) {
+            discount = v.getDiscountValue();
+        } else {
+            discount = total.multiply(v.getDiscountValue()).divide(new BigDecimal("100"));
+            if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
+                discount = v.getMaxDiscount();
+            }
+        }
+        
+        uv.setIsUsed(true);
+        uv.setUsedAt(java.time.LocalDateTime.now());
+        userVoucherRepository.save(uv);
+    }
+    
+    invoice.setDiscountAmount(discount);
+    invoice.setTotalAmount(total.subtract(discount).max(BigDecimal.ZERO));
 
     invoice = invoiceRepository.save(invoice);
 
@@ -274,6 +272,10 @@ public class OrderServiceImpl implements OrderService {
     invoice.setStatus(newStatus);
     invoice = invoiceRepository.save(invoice);
 
+    if ("DELIVERED".equals(newStatus) && invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
+        loyaltyService.earnPoints(invoice.getCustomer().getUserId(), invoice.getTotalAmount(), invoice.getId());
+    }
+
     if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
       String statusStr =
           switch (newStatus) {
@@ -299,32 +301,6 @@ public class OrderServiceImpl implements OrderService {
       UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.CancelRequestReq req) {
     Invoice invoice =
         invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
-
-        invoice.setStatus(newStatus);
-        invoice = invoiceRepository.save(invoice);
-        
-        if ("DELIVERED".equals(newStatus) && invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
-            loyaltyService.earnPoints(invoice.getCustomer().getUserId(), invoice.getTotalAmount(), invoice.getId());
-        }
-        
-        if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
-            String statusStr = switch (newStatus) {
-                case "CONFIRMED" -> "đã được xác nhận";
-                case "SHIPPING" -> "đang được giao";
-                case "DELIVERED" -> "đã giao thành công";
-                case "CANCELLED" -> "đã bị hủy";
-                default -> "được cập nhật trạng thái";
-            };
-            notificationService.createNotification(
-                    invoice.getCustomer().getUserId(),
-                    "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
-                    "Đơn hàng của bạn " + statusStr + ".",
-                    "/profile/orders?orderId=" + invoice.getId()
-            );
-        }
-        
-        return mapToResponse(invoice);
-    }
 
     if ("DELIVERED".equals(invoice.getStatus()) || "CANCELLED".equals(invoice.getStatus())) {
       throw new RuntimeException("Cannot cancel an order that is already delivered or cancelled");
@@ -377,6 +353,8 @@ public class OrderServiceImpl implements OrderService {
           msg,
           "/profile/orders?orderId=" + invoice.getId());
     }
+    return mapToResponse(invoice);
+  }
 
     @Override
     @Transactional
@@ -477,22 +455,4 @@ public class OrderServiceImpl implements OrderService {
                 .items(itemResponses)
                 .build();
     }
-
-    return OrderResponse.builder()
-        .id(invoice.getId())
-        .code(invoice.getInvoiceCode())
-        .status(feStatus)
-        .totalAmount(invoice.getTotalAmount())
-        .shippingFee(BigDecimal.ZERO)
-        .finalAmount(invoice.getTotalAmount())
-        .createdAt(invoice.getCreatedAt())
-        .updatedAt(invoice.getUpdatedAt())
-        .paymentMethod(fePaymentMethod)
-        .shippingAddress(invoice.getCustomer().getAddress())
-        .note(invoice.getNote())
-        .customerName(invoice.getCustomer().getFullName())
-        .customerPhone(invoice.getCustomer().getPhone())
-        .items(itemResponses)
-        .build();
-  }
 }
