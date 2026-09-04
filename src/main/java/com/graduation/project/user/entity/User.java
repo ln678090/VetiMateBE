@@ -49,6 +49,7 @@ public class User {
   private String fullName;
 
   @Column(nullable = false)
+  @Builder.Default
   private Boolean enabled = true;
 
   @CreationTimestamp
@@ -67,6 +68,7 @@ public class User {
       name = "user_roles",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "role_id"))
+  @Builder.Default
   private List<Role> roles = new ArrayList<>();
 
   public Boolean getIsEnabled() {

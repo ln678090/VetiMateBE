@@ -42,7 +42,12 @@ public class Notification {
   private String status;
 
   @Column(name = "attempt_count", nullable = false)
+  @Builder.Default
   private Integer attemptCount = 0;
+
+  @Builder.Default
+  @Column(name = "is_read", nullable = false)
+  private Boolean isRead = false;
 
   @Column(name = "scheduled_at")
   private Instant scheduledAt;

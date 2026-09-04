@@ -1,8 +1,6 @@
 # Profile dành cho GitHub Actions CI
 # Disable Redis và các service không cần thiết khi chạy test schema
 spring:
-  profiles:
-    active: ci
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration

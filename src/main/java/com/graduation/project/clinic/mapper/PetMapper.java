@@ -17,11 +17,19 @@ public interface PetMapper {
   @Mapping(target = "customer", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
+  @Mapping(target = "deletedAt", ignore = true)
+  @Mapping(target = "currentHealthStatus", ignore = true)
+  @Mapping(target = "currentHealthNote", ignore = true)
+  @Mapping(target = "lastExaminedAt", ignore = true)
   Pet toEntity(PetRequest request);
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "customer", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
+  @Mapping(target = "deletedAt", ignore = true)
+  @Mapping(target = "currentHealthStatus", ignore = true)
+  @Mapping(target = "currentHealthNote", ignore = true)
+  @Mapping(target = "lastExaminedAt", ignore = true)
   void updateEntity(PetRequest request, @MappingTarget Pet entity);
 }
