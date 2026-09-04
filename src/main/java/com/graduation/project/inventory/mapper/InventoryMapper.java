@@ -45,7 +45,9 @@ public interface InventoryMapper {
 
   // ===== StockVoucher =====
   @Mapping(target = "items", source = "items")
-  @Mapping(target = "itemCount", expression = "java(voucher.getItems() != null ? voucher.getItems().size() : 0)")
+  @Mapping(
+      target = "itemCount",
+      expression = "java(voucher.getItems() != null ? voucher.getItems().size() : 0)")
   StockVoucherResp toVoucherResp(StockVoucher voucher);
 
   List<StockVoucherResp> toVoucherRespList(List<StockVoucher> vouchers);

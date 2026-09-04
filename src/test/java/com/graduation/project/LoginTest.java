@@ -9,18 +9,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 public class LoginTest {
 
-    @Autowired
-    private AuthService authService;
+  @Autowired private AuthService authService;
 
-    @Test
-    public void testLogin() {
-        try {
-            System.out.println("TESTING LOGIN...");
-            var tokenPair = authService.login(new LoginRequest("demaciagarenss@gmail.com", "123456"));
-            System.out.println("LOGIN SUCCESS: " + tokenPair.accessToken());
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+  @Test
+  public void testLogin() {
+    try {
+      System.out.println("TESTING LOGIN...");
+      var tokenPair = authService.login(new LoginRequest("demaciagarenss@gmail.com", "123456"));
+      System.out.println("LOGIN SUCCESS: " + tokenPair.accessToken());
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw e;
     }
+  }
 }

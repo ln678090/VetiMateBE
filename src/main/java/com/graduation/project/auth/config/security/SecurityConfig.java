@@ -97,19 +97,29 @@ public class SecurityConfig {
 
     return http.csrf(AbstractHttpConfigurer::disable)
         .cors(Customizer.withDefaults())
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            .requestMatchers("/error").permitAll()
-            .requestMatchers("/api/auth/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/clinic/services/**").permitAll()
-            .requestMatchers("/api/tracking/action").permitAll()
-            .requestMatchers("/", "/index.html", "/dist/**", "/assets/**").permitAll()
-            .anyRequest().authenticated())
-        .oauth2ResourceServer(oauth2 -> oauth2
-            .jwt(jwt -> jwt.jwtAuthenticationConverter(
-                jwtAuthenticationConverter())))
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(HttpMethod.OPTIONS, "/**")
+                    .permitAll()
+                    .requestMatchers("/error")
+                    .permitAll()
+                    .requestMatchers("/api/auth/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/catalog/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/products/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/clinic/services/**")
+                    .permitAll()
+                    .requestMatchers("/api/tracking/action")
+                    .permitAll()
+                    .requestMatchers("/", "/index.html", "/dist/**", "/assets/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .oauth2ResourceServer(
+            oauth2 ->
+                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
         // .oauth2ResourceServer(oauth2 -> oauth2
         // .jwt(Customizer.withDefaults())
         // .authenticationEntryPoint(entryPointOauth2)

@@ -5,9 +5,4 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record QueueTicketRequest(
-    @NotNull(message = "Queue type is required")
-    QueueType queueType,
-    
-    UUID appointmentId
-) {
-}
+    @NotNull(message = "Queue type is required") QueueType queueType, UUID appointmentId) {}

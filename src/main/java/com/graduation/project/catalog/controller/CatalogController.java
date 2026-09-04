@@ -76,7 +76,9 @@ public class CatalogController {
 
   @PostMapping("/categories")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-  public ApiResp<CategoryResp> createCategory(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.CategoryReq req) {
+  public ApiResp<CategoryResp> createCategory(
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.CategoryReq req) {
     return ApiResp.<CategoryResp>builder()
         .message("Tạo danh mục thành công")
         .data(catalogService.createCategory(req))
@@ -111,7 +113,9 @@ public class CatalogController {
 
   @PostMapping("/brands")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-  public ApiResp<BrandResp> createBrand(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.graduation.project.catalog.dto.req.BrandReq req) {
+  public ApiResp<BrandResp> createBrand(
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.graduation.project.catalog.dto.req.BrandReq req) {
     return ApiResp.<BrandResp>builder()
         .message("Tạo thương hiệu thành công")
         .data(catalogService.createBrand(req))

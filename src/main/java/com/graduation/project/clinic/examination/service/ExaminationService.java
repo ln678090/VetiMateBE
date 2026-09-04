@@ -123,13 +123,9 @@ public class ExaminationService {
       throw new ClinicWorkflowException("Một loại thuốc không được xuất hiện nhiều lần trong đơn");
     }
 
-    Map<UUID, Medicine> medicineById = medicineRepository
-        .findAllByIdInAndIsActiveTrue(medicineIds)
-        .stream()
-        .collect(
-            Collectors.toMap(
-                Medicine::getId,
-                Function.identity()));
+    Map<UUID, Medicine> medicineById =
+        medicineRepository.findAllByIdInAndIsActiveTrue(medicineIds).stream()
+            .collect(Collectors.toMap(Medicine::getId, Function.identity()));
 
     if (medicineById.size() != medicineIds.size()) {
       throw new ClinicWorkflowException("Có thuốc không tồn tại hoặc đã ngừng sử dụng");
@@ -191,9 +187,7 @@ public class ExaminationService {
   }
 
   public List<MedicineOptionResponse> getMedicines() {
-    return medicineRepository
-        .findByIsActiveTrueOrderByNameAsc()
-        .stream()
+    return medicineRepository.findByIsActiveTrueOrderByNameAsc().stream()
         .map(
             medicine ->
                 new MedicineOptionResponse(

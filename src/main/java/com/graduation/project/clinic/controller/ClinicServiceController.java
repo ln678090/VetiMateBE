@@ -11,13 +11,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -43,7 +43,8 @@ public class ClinicServiceController {
   // POST /api/clinic/services - Tạo dịch vụ
   @PostMapping
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-  public ResponseEntity<ApiResp<ClinicServiceDto>> create(@Valid @RequestBody ClinicServiceRequest request) {
+  public ResponseEntity<ApiResp<ClinicServiceDto>> create(
+      @Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.create(request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
@@ -56,8 +57,8 @@ public class ClinicServiceController {
   // PUT /api/clinic/services/{id} - Sửa dịch vụ
   @PutMapping("/{id}")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-  public ResponseEntity<ApiResp<ClinicServiceDto>> update(@PathVariable UUID id,
-      @Valid @RequestBody ClinicServiceRequest request) {
+  public ResponseEntity<ApiResp<ClinicServiceDto>> update(
+      @PathVariable UUID id, @Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.update(id, request);
     return ResponseEntity.ok(
         ApiResp.<ClinicServiceDto>builder()

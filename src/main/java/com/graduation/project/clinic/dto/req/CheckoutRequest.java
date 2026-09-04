@@ -22,10 +22,9 @@ public class CheckoutRequest {
 
   @NotBlank private String paymentMethod; // 'COD', 'BANK_TRANSFER', 'VNPAY', 'MOMO'
 
-    private java.util.UUID userVoucherId;
+  private java.util.UUID userVoucherId;
 
-    @NotEmpty
-    private List<CartItemReq> items;
+  @NotEmpty private List<CartItemReq> items;
 
   @Data
   public static class CartItemReq {

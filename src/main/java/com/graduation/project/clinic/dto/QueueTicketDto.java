@@ -2,7 +2,6 @@ package com.graduation.project.clinic.dto;
 
 import com.graduation.project.clinic.entity.QueueStatus;
 import com.graduation.project.clinic.entity.QueueType;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -19,6 +18,4 @@ public record QueueTicketDto(
     QueueStatus status,
     Instant calledAt,
     Instant completedAt,
-    Instant createdAt
-) {
-}
+    Instant createdAt) {}

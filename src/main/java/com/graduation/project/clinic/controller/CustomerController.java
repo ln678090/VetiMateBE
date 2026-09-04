@@ -14,10 +14,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.Instant;
-import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,8 +26,7 @@ public class CustomerController {
 
   @GetMapping("/me/customer")
   @PreAuthorize("isAuthenticated()")
-  public ApiResp<CustomerDto> getMyCustomer(
-      Authentication auth) {
+  public ApiResp<CustomerDto> getMyCustomer(Authentication auth) {
     UUID userId = SecurityUtils.currentUserId(auth);
     CustomerDto dto = customerService.getOrCreateForCurrentUser(userId);
     return ApiResp.<CustomerDto>builder()
@@ -53,8 +48,8 @@ public class CustomerController {
   // PUT /api/clinic/customers/{id} - Sửa khách hàng
   @PutMapping("/{id}")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
-  public ResponseEntity<ApiResp<CustomerDto>> update(@PathVariable UUID id,
-      @Valid @RequestBody CustomerRequest request) {
+  public ResponseEntity<ApiResp<CustomerDto>> update(
+      @PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.update(id, request);
     return ResponseEntity.ok(
         ApiResp.<CustomerDto>builder().message("Cập nhật khách hàng thành công").data(dto).build());

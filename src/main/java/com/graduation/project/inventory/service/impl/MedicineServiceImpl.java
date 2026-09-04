@@ -86,9 +86,7 @@ public class MedicineServiceImpl implements MedicineService {
 
   @Override
   public List<MedicineResp> getLowStockMedicines() {
-    return medicineRepository.findLowStockMedicines().stream()
-        .map(this::toRespWithStock)
-        .toList();
+    return medicineRepository.findLowStockMedicines().stream().map(this::toRespWithStock).toList();
   }
 
   // ===== helpers =====

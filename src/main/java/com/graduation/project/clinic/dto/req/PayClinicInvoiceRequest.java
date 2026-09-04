@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class PayClinicInvoiceRequest {
-    @NotNull(message = "Payment method is required")
-    private String paymentMethod; // CASH, CARD, BANK_TRANSFER, VNPAY, MOMO
+  @NotNull(message = "Payment method is required")
+  private String paymentMethod; // CASH, CARD, BANK_TRANSFER, VNPAY, MOMO
 }

@@ -9,6 +9,5 @@ public record SupplierRequest(
         @Size(max = 200, message = "Tên NCC tối đa 200 ký tự")
         String name,
     @Size(max = 20, message = "Số điện thoại tối đa 20 ký tự") String phone,
-    @Email(message = "Email không hợp lệ")
-        @Size(max = 150, message = "Email tối đa 150 ký tự")
+    @Email(message = "Email không hợp lệ") @Size(max = 150, message = "Email tối đa 150 ký tự")
         String email) {}

@@ -83,8 +83,7 @@ public class StockServiceImpl implements StockService {
 
     if (voucher.getStatus() != VoucherStatus.DRAFT) {
       throw new IllegalArgumentException(
-          "Chỉ có thể duyệt phiếu ở trạng thái DRAFT. Trạng thái hiện tại: "
-              + voucher.getStatus());
+          "Chỉ có thể duyệt phiếu ở trạng thái DRAFT. Trạng thái hiện tại: " + voucher.getStatus());
     }
 
     // Load items
@@ -115,8 +114,7 @@ public class StockServiceImpl implements StockService {
 
     if (voucher.getStatus() != VoucherStatus.DRAFT) {
       throw new IllegalArgumentException(
-          "Chỉ có thể hủy phiếu ở trạng thái DRAFT. Trạng thái hiện tại: "
-              + voucher.getStatus());
+          "Chỉ có thể hủy phiếu ở trạng thái DRAFT. Trạng thái hiện tại: " + voucher.getStatus());
     }
 
     voucher.setStatus(VoucherStatus.CANCELLED);
@@ -151,11 +149,12 @@ public class StockServiceImpl implements StockService {
       result = voucherRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
-    return result.map(v -> {
-      List<StockVoucherItem> items = voucherItemRepository.findByVoucherIdOrderById(v.getId());
-      v.setItems(items);
-      return inventoryMapper.toVoucherResp(v);
-    });
+    return result.map(
+        v -> {
+          List<StockVoucherItem> items = voucherItemRepository.findByVoucherIdOrderById(v.getId());
+          v.setItems(items);
+          return inventoryMapper.toVoucherResp(v);
+        });
   }
 
   // ============================================================
@@ -257,11 +256,9 @@ public class StockServiceImpl implements StockService {
         // FEFO: xuất từ lô sắp hết hạn trước
         List<StockBatch> batches;
         if (item.getMedicine() != null) {
-          batches =
-              batchRepository.findAvailableBatchesByMedicineFefo(item.getMedicine().getId());
+          batches = batchRepository.findAvailableBatchesByMedicineFefo(item.getMedicine().getId());
         } else if (item.getProduct() != null) {
-          batches =
-              batchRepository.findAvailableBatchesByProductFefo(item.getProduct().getId());
+          batches = batchRepository.findAvailableBatchesByProductFefo(item.getProduct().getId());
         } else {
           throw new IllegalArgumentException("Dòng xuất kho phải có medicine hoặc product");
         }
@@ -301,8 +298,7 @@ public class StockServiceImpl implements StockService {
   // HELPERS
   // ============================================================
 
-  private StockVoucherItem buildVoucherItem(
-      StockVoucher voucher, VoucherItemRequest req) {
+  private StockVoucherItem buildVoucherItem(StockVoucher voucher, VoucherItemRequest req) {
     Medicine medicine = null;
     Product product = null;
     StockBatch batch = null;
@@ -319,8 +315,7 @@ public class StockServiceImpl implements StockService {
           productRepository
               .findById(req.productId())
               .orElseThrow(
-                  () ->
-                      new NoSuchElementException("Không tìm thấy sản phẩm: " + req.productId()));
+                  () -> new NoSuchElementException("Không tìm thấy sản phẩm: " + req.productId()));
     }
     if (req.batchId() != null) {
       batch =

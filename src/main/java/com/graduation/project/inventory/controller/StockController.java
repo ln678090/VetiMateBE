@@ -69,8 +69,7 @@ public class StockController {
 
   @PostMapping("/vouchers")
   @ResponseStatus(HttpStatus.CREATED)
-  public ApiResp<StockVoucherResp> createVoucher(
-      @Valid @RequestBody CreateVoucherRequest request) {
+  public ApiResp<StockVoucherResp> createVoucher(@Valid @RequestBody CreateVoucherRequest request) {
     return ApiResp.<StockVoucherResp>builder()
         .message("Tạo phiếu kho thành công")
         .data(stockService.createVoucher(request))
