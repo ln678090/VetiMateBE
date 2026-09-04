@@ -12,5 +12,4 @@ public record CustomerDto(
     String address,
     String note,
     Instant createdAt,
-    Instant updatedAt) {
-}
+    Instant updatedAt) {}

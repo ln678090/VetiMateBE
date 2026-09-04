@@ -1,16 +1,12 @@
 package com.graduation.project.inventory.entity;
 
-import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.utils.annotation.UuidV7;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
@@ -48,19 +44,21 @@ public class StockVoucher {
   @Builder.Default
   private VoucherStatus status = VoucherStatus.DRAFT;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "created_by")
-  private Staff createdBy;
+  @Column(name = "created_by", columnDefinition = "uuid")
+  private UUID createdBy;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "approved_by")
-  private Staff approvedBy;
+  @Column(name = "approved_by", columnDefinition = "uuid")
+  private UUID approvedBy;
 
   @Column(name = "approved_at")
   private OffsetDateTime approvedAt;
 
   @Column(length = 500)
   private String note;
+
+  @OneToMany(mappedBy = "voucher", fetch = FetchType.LAZY)
+  @Builder.Default
+  private List<StockVoucherItem> items = new ArrayList<>();
 
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)
@@ -69,26 +67,4 @@ public class StockVoucher {
   @UpdateTimestamp
   @Column(name = "updated_at")
   private OffsetDateTime updatedAt;
-
-  @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
-  @Builder.Default
-  private List<StockVoucherItem> items = new ArrayList<>();
-
-  public void addItem(StockVoucherItem item) {
-    items.add(item);
-    item.setVoucher(this);
-  }
-
-  public enum VoucherType {
-    IMPORT,
-    EXPORT,
-    TRANSFER,
-    STOCKTAKE
-  }
-
-  public enum VoucherStatus {
-    DRAFT,
-    APPROVED,
-    CANCELLED
-  }
 }

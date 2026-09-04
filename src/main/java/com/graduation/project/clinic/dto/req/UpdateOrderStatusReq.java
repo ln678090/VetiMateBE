@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class UpdateOrderStatusReq {
-    @NotBlank(message = "Status is required")
-    private String status;
+  @NotBlank(message = "Status is required")
+  private String status;
 }

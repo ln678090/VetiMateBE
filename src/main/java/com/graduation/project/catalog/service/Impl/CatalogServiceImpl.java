@@ -11,16 +11,16 @@ import com.graduation.project.catalog.mapper.CatalogMapper;
 import com.graduation.project.catalog.repository.BrandRepository;
 import com.graduation.project.catalog.repository.CategoryRepository;
 import com.graduation.project.catalog.service.CatalogService;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import java.text.Normalizer;
-import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,7 +109,7 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   // ===== Quản lý Danh mục =====
-  
+
   @Override
   @Transactional
   public CategoryResp createCategory(CategoryReq req) {
@@ -118,13 +118,15 @@ public class CatalogServiceImpl implements CatalogService {
     category.setSlug(generateSlug(req.getName()) + "-" + System.currentTimeMillis());
     category.setDescription(req.getDescription());
     category.setIsActive(req.getIsActive());
-    
+
     if (req.getParentId() != null) {
-      Category parent = categoryRepository.findById(req.getParentId())
-          .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục cha"));
+      Category parent =
+          categoryRepository
+              .findById(req.getParentId())
+              .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục cha"));
       category.setParent(parent);
     }
-    
+
     category = categoryRepository.save(category);
     return catalogMapper.toCategoryResp(category);
   }
@@ -132,25 +134,30 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   @Transactional
   public CategoryResp updateCategory(UUID id, CategoryReq req) {
-    Category category = categoryRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục"));
-        
+    Category category =
+        categoryRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục"));
+
     category.setName(req.getName());
-    // Only update slug if you want, usually slugs are immutable or regenerated. We keep it simple here.
+    // Only update slug if you want, usually slugs are immutable or regenerated. We keep it simple
+    // here.
     category.setDescription(req.getDescription());
     category.setIsActive(req.getIsActive());
-    
+
     if (req.getParentId() != null) {
       if (req.getParentId().equals(id)) {
-         throw new IllegalArgumentException("Danh mục cha không thể là chính nó");
+        throw new IllegalArgumentException("Danh mục cha không thể là chính nó");
       }
-      Category parent = categoryRepository.findById(req.getParentId())
-          .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục cha"));
+      Category parent =
+          categoryRepository
+              .findById(req.getParentId())
+              .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục cha"));
       category.setParent(parent);
     } else {
       category.setParent(null);
     }
-    
+
     category = categoryRepository.save(category);
     return catalogMapper.toCategoryResp(category);
   }
@@ -158,13 +165,15 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   @Transactional
   public void deleteCategory(UUID id) {
-    Category category = categoryRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục"));
-        
+    Category category =
+        categoryRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy danh mục"));
+
     if (!category.getChildren().isEmpty()) {
-       throw new IllegalStateException("Không thể xóa danh mục đang có danh mục con");
+      throw new IllegalStateException("Không thể xóa danh mục đang có danh mục con");
     }
-    
+
     categoryRepository.delete(category);
   }
 
@@ -179,7 +188,7 @@ public class CatalogServiceImpl implements CatalogService {
     brand.setDescription(req.getDescription());
     brand.setLogoUrl(req.getLogoUrl());
     brand.setIsActive(req.getIsActive());
-    
+
     brand = brandRepository.save(brand);
     return catalogMapper.toBrandResp(brand);
   }
@@ -187,14 +196,16 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   @Transactional
   public BrandResp updateBrand(UUID id, BrandReq req) {
-    Brand brand = brandRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy thương hiệu"));
-        
+    Brand brand =
+        brandRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy thương hiệu"));
+
     brand.setName(req.getName());
     brand.setDescription(req.getDescription());
     brand.setLogoUrl(req.getLogoUrl());
     brand.setIsActive(req.getIsActive());
-    
+
     brand = brandRepository.save(brand);
     return catalogMapper.toBrandResp(brand);
   }
@@ -202,8 +213,10 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   @Transactional
   public void deleteBrand(UUID id) {
-    Brand brand = brandRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy thương hiệu"));
+    Brand brand =
+        brandRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy thương hiệu"));
     brandRepository.delete(brand);
   }
 }

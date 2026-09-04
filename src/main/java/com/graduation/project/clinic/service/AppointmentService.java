@@ -5,13 +5,11 @@ import com.graduation.project.clinic.dto.req.CreateAppointmentRequest;
 import com.graduation.project.clinic.dto.req.UpdateAppointmentStatusRequest;
 import com.graduation.project.clinic.dto.resp.AvailableSlotResponse;
 import com.graduation.project.clinic.entity.AppointmentStatus;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface AppointmentService {
   AppointmentDto create(CreateAppointmentRequest request);
@@ -27,8 +25,5 @@ public interface AppointmentService {
   List<AvailableSlotResponse> getAvailableSlots(UUID serviceId, LocalDate date);
 
   Page<AppointmentDto> getForManagement(
-      LocalDate startDate,
-      LocalDate endDate,
-      AppointmentStatus status,
-      Pageable pageable);
+      LocalDate startDate, LocalDate endDate, AppointmentStatus status, Pageable pageable);
 }

@@ -3,19 +3,17 @@ package com.graduation.project.clinic.examination.controller;
 import com.graduation.project.auth.utils.SecurityUtils;
 import com.graduation.project.clinic.examination.dto.ExaminationDtos.*;
 import com.graduation.project.clinic.examination.service.ExaminationService;
-
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.data.domain.Sort;
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/clinic/examinations")
@@ -28,22 +26,18 @@ public class ExaminationController {
   @PreAuthorize("hasAuthority('ROLE_DOCTOR')")
   public Page<ExaminationHistoryResponse> getHistory(
       Authentication authentication,
-      @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+      @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC)
+          Pageable pageable) {
     UUID currentUserId = SecurityUtils.currentUserId(authentication);
 
-    return examinationService.getHistory(
-        currentUserId,
-        pageable);
+    return examinationService.getHistory(currentUserId, pageable);
   }
 
   @PostMapping("/appointments/{appointmentId}")
   public MedicalRecordResponse openExamination(
-      @PathVariable UUID appointmentId,
-      Authentication authentication) {
+      @PathVariable UUID appointmentId, Authentication authentication) {
     UUID currentUserId = SecurityUtils.currentUserId(authentication);
-    return examinationService.openExamination(
-        appointmentId,
-        currentUserId);
+    return examinationService.openExamination(appointmentId, currentUserId);
   }
 
   @GetMapping("/medicines")
@@ -53,11 +47,8 @@ public class ExaminationController {
 
   @GetMapping("/{medicalRecordId}")
   public MedicalRecordResponse getById(
-      @PathVariable UUID medicalRecordId,
-      Authentication authentication) {
-    return examinationService.getById(
-        medicalRecordId,
-        SecurityUtils.currentUserId(authentication));
+      @PathVariable UUID medicalRecordId, Authentication authentication) {
+    return examinationService.getById(medicalRecordId, SecurityUtils.currentUserId(authentication));
   }
 
   @PutMapping("/{medicalRecordId}")
@@ -66,9 +57,7 @@ public class ExaminationController {
       @Valid @RequestBody SaveExaminationRequest request,
       Authentication authentication) {
     return examinationService.saveExamination(
-        medicalRecordId,
-        request,
-        SecurityUtils.currentUserId(authentication));
+        medicalRecordId, request, SecurityUtils.currentUserId(authentication));
   }
 
   @PutMapping("/{medicalRecordId}/prescriptions")
@@ -77,17 +66,13 @@ public class ExaminationController {
       @Valid @RequestBody ReplacePrescriptionsRequest request,
       Authentication authentication) {
     return examinationService.replacePrescriptions(
-        medicalRecordId,
-        request,
-        SecurityUtils.currentUserId(authentication));
+        medicalRecordId, request, SecurityUtils.currentUserId(authentication));
   }
 
   @PostMapping("/{medicalRecordId}/complete")
   public MedicalRecordResponse complete(
-      @PathVariable UUID medicalRecordId,
-      Authentication authentication) {
+      @PathVariable UUID medicalRecordId, Authentication authentication) {
     return examinationService.complete(
-        medicalRecordId,
-        SecurityUtils.currentUserId(authentication));
+        medicalRecordId, SecurityUtils.currentUserId(authentication));
   }
 }

@@ -23,55 +23,53 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+  private final UserService userService;
 
-    @GetMapping("/me")
-    public ResponseEntity<ApiResp<UserProfileResp>> getMyProfile(Authentication authentication) {
-        Object principal = authentication.getPrincipal();
-        UUID userId;
-        
-        if (principal instanceof Jwt jwt) {
-            userId = UUID.fromString(jwt.getSubject());
-        } else if (principal instanceof CustomUserDetails userDetails) {
-            userId = userDetails.id();
-        } else {
-            throw new IllegalStateException("Authentication principal không hợp lệ");
-        }
+  @GetMapping("/me")
+  public ResponseEntity<ApiResp<UserProfileResp>> getMyProfile(Authentication authentication) {
+    Object principal = authentication.getPrincipal();
+    UUID userId;
 
-        UserProfileResp resp = userService.getMyProfile(userId);
-        
-        return ResponseEntity.ok(
-                ApiResp.<UserProfileResp>builder()
-                        .message("Thành công")
-                        .data(resp)
-                        .timestamp(Instant.now().toString())
-                        .build());
+    if (principal instanceof Jwt jwt) {
+      userId = UUID.fromString(jwt.getSubject());
+    } else if (principal instanceof CustomUserDetails userDetails) {
+      userId = userDetails.id();
+    } else {
+      throw new IllegalStateException("Authentication principal không hợp lệ");
     }
 
-    @PutMapping("/me/profile")
-    public ResponseEntity<ApiResp<String>> updateProfile(
-            @Valid @RequestBody UpdateProfileRequest request,
-            Authentication authentication) {
-        
-        Object principal = authentication.getPrincipal();
-        UUID userId;
-        
-        if (principal instanceof Jwt jwt) {
-            userId = UUID.fromString(jwt.getSubject());
-        } else if (principal instanceof CustomUserDetails userDetails) {
-            userId = userDetails.id();
-        } else {
-            throw new IllegalStateException("Authentication principal không hợp lệ");
-        }
+    UserProfileResp resp = userService.getMyProfile(userId);
 
-        userService.updateProfile(userId, request);
+    return ResponseEntity.ok(
+        ApiResp.<UserProfileResp>builder()
+            .message("Thành công")
+            .data(resp)
+            .timestamp(Instant.now().toString())
+            .build());
+  }
 
-        return ResponseEntity.ok(
-                ApiResp.<String>builder()
-                        .message("Cập nhật hồ sơ thành công")
-                        .data("OK")
-                        .timestamp(Instant.now().toString())
-                        .build());
+  @PutMapping("/me/profile")
+  public ResponseEntity<ApiResp<String>> updateProfile(
+      @Valid @RequestBody UpdateProfileRequest request, Authentication authentication) {
+
+    Object principal = authentication.getPrincipal();
+    UUID userId;
+
+    if (principal instanceof Jwt jwt) {
+      userId = UUID.fromString(jwt.getSubject());
+    } else if (principal instanceof CustomUserDetails userDetails) {
+      userId = userDetails.id();
+    } else {
+      throw new IllegalStateException("Authentication principal không hợp lệ");
     }
 
+    userService.updateProfile(userId, request);
+
+    return ResponseEntity.ok(
+        ApiResp.<String>builder()
+            .message("Cập nhật hồ sơ thành công")
+            .data("OK")
+            .timestamp(Instant.now().toString())
+            .build());
+  }
 }

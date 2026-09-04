@@ -1,4 +1,3 @@
-
 package com.graduation.project.clinic.service.impl;
 
 import com.graduation.project.clinic.dto.PetDto;
@@ -10,14 +9,13 @@ import com.graduation.project.clinic.repository.CustomerRepository;
 import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.service.OwnerPetService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,38 +27,29 @@ public class OwnerPetServiceImpl implements OwnerPetService {
   private final PetMapper petMapper;
 
   @Override
-  public Page<PetDto> getMyPets(
-      UUID currentUserId,
-      Pageable pageable) {
+  public Page<PetDto> getMyPets(UUID currentUserId, Pageable pageable) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
     return petRepository
-        .findByCustomerIdAndDeletedAtIsNull(
-            customer.getId(),
-            pageable)
+        .findByCustomerIdAndDeletedAtIsNull(customer.getId(), pageable)
         .map(petMapper::toDto);
   }
 
   @Override
-  public PetDto getMyPet(
-      UUID petId,
-      UUID currentUserId) {
+  public PetDto getMyPet(UUID petId, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
-    Pet pet = petRepository
-        .findByIdAndCustomerIdAndDeletedAtIsNull(
-            petId,
-            customer.getId())
-        .orElseThrow(this::petNotFound);
+    Pet pet =
+        petRepository
+            .findByIdAndCustomerIdAndDeletedAtIsNull(petId, customer.getId())
+            .orElseThrow(this::petNotFound);
 
     return petMapper.toDto(pet);
   }
 
   @Override
   @Transactional
-  public PetDto createMyPet(
-      OwnerPetRequest request,
-      UUID currentUserId) {
+  public PetDto createMyPet(OwnerPetRequest request, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
     Pet pet = new Pet();
@@ -73,15 +62,10 @@ public class OwnerPetServiceImpl implements OwnerPetService {
 
   @Override
   @Transactional
-  public PetDto updateMyPet(
-      UUID petId,
-      OwnerPetRequest request,
-      UUID currentUserId) {
+  public PetDto updateMyPet(UUID petId, OwnerPetRequest request, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
-    Pet pet = requireOwnedPetForUpdate(
-        petId,
-        customer.getId());
+    Pet pet = requireOwnedPetForUpdate(petId, customer.getId());
 
     applyRequest(pet, request);
 
@@ -90,14 +74,10 @@ public class OwnerPetServiceImpl implements OwnerPetService {
 
   @Override
   @Transactional
-  public void deleteMyPet(
-      UUID petId,
-      UUID currentUserId) {
+  public void deleteMyPet(UUID petId, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
-    Pet pet = requireOwnedPetForUpdate(
-        petId,
-        customer.getId());
+    Pet pet = requireOwnedPetForUpdate(petId, customer.getId());
 
     pet.setDeletedAt(Instant.now());
     petRepository.save(pet);
@@ -106,28 +86,20 @@ public class OwnerPetServiceImpl implements OwnerPetService {
   private Customer requireOwnerCustomer(UUID currentUserId) {
     return customerRepository
         .findByUserId(currentUserId)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy hồ sơ khách hàng"));
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ khách hàng"));
   }
 
-  private Pet requireOwnedPetForUpdate(
-      UUID petId,
-      UUID customerId) {
-    Pet pet = petRepository
-        .findByIdForUpdate(petId)
-        .orElseThrow(this::petNotFound);
+  private Pet requireOwnedPetForUpdate(UUID petId, UUID customerId) {
+    Pet pet = petRepository.findByIdForUpdate(petId).orElseThrow(this::petNotFound);
 
-    if (pet.getDeletedAt() != null
-        || !pet.getCustomer().getId().equals(customerId)) {
+    if (pet.getDeletedAt() != null || !pet.getCustomer().getId().equals(customerId)) {
       throw petNotFound();
     }
 
     return pet;
   }
 
-  private void applyRequest(
-      Pet pet,
-      OwnerPetRequest request) {
+  private void applyRequest(Pet pet, OwnerPetRequest request) {
     pet.setName(request.name().trim());
     pet.setSpecies(request.species());
     pet.setBreed(normalize(request.breed()));
@@ -149,7 +121,6 @@ public class OwnerPetServiceImpl implements OwnerPetService {
   }
 
   private ResourceNotFoundException petNotFound() {
-    return new ResourceNotFoundException(
-        "Không tìm thấy thú cưng");
+    return new ResourceNotFoundException("Không tìm thấy thú cưng");
   }
 }

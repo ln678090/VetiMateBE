@@ -2,11 +2,10 @@ package com.graduation.project.clinic.entity;
 
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "clinic_appointments")

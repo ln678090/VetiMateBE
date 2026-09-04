@@ -6,6 +6,7 @@ import com.graduation.project.clinic.dto.req.CustomerRequest;
 import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/clinic/customers")
@@ -43,8 +45,9 @@ public class CustomerController {
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")
   public ResponseEntity<ApiResp<CustomerDto>> create(@Valid @RequestBody CustomerRequest request) {
     CustomerDto dto = customerService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResp.<CustomerDto>builder().message("Tạo khách hàng thành công").data(dto).build());
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResp.<CustomerDto>builder().message("Tạo khách hàng thành công").data(dto).build());
   }
 
   // PUT /api/clinic/customers/{id} - Sửa khách hàng
@@ -72,8 +75,7 @@ public class CustomerController {
       @RequestParam(required = false) String keyword,
       @PageableDefault(size = 20) Pageable pageable) {
     Page<CustomerDto> page = customerService.search(keyword, pageable);
-    return ResponseEntity.ok(
-        ApiResp.<Page<CustomerDto>>builder().message("OK").data(page).build());
+    return ResponseEntity.ok(ApiResp.<Page<CustomerDto>>builder().message("OK").data(page).build());
   }
 
   // DELETE /api/clinic/customers/{id} - Xóa khách hàng
@@ -81,7 +83,6 @@ public class CustomerController {
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
     customerService.delete(id);
-    return ResponseEntity.ok(
-        ApiResp.<Void>builder().message("Xóa khách hàng thành công").build());
+    return ResponseEntity.ok(ApiResp.<Void>builder().message("Xóa khách hàng thành công").build());
   }
 }

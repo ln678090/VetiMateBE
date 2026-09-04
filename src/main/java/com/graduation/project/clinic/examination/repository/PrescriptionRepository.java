@@ -1,18 +1,15 @@
 package com.graduation.project.clinic.examination.repository;
 
 import com.graduation.project.clinic.examination.entity.Prescription;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-import java.util.UUID;
-
-public interface PrescriptionRepository
-    extends JpaRepository<Prescription, UUID> {
+public interface PrescriptionRepository extends JpaRepository<Prescription, UUID> {
 
   @EntityGraph(attributePaths = "medicine")
-  List<Prescription> findAllByMedicalRecord_IdOrderByIdAsc(
-      UUID medicalRecordId);
+  List<Prescription> findAllByMedicalRecord_IdOrderByIdAsc(UUID medicalRecordId);
 
   long countByMedicalRecord_Id(UUID medicalRecordId);
 

@@ -31,7 +31,7 @@ public class StockVoucherItem {
   @Column(columnDefinition = "uuid", updatable = false, nullable = false)
   private UUID id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "voucher_id", nullable = false)
   private StockVoucher voucher;
 
@@ -55,4 +55,11 @@ public class StockVoucherItem {
 
   @Column(length = 255)
   private String note;
+
+  /** Lấy tên hiển thị — thuốc hoặc sản phẩm */
+  public String getItemName() {
+    if (medicine != null) return medicine.getName();
+    if (product != null) return product.getName();
+    return "N/A";
+  }
 }

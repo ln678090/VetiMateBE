@@ -3,41 +3,34 @@ package com.graduation.project.clinic.dto.req;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class CheckoutRequest {
-    @NotBlank
-    private String fullName;
+  @NotBlank private String fullName;
 
-    @NotBlank
-    private String phone;
+  @NotBlank private String phone;
 
-    @NotBlank
-    private String city;
+  @NotBlank private String city;
 
-    @NotBlank
-    private String district;
+  @NotBlank private String district;
 
-    @NotBlank
-    private String specificAddress;
+  @NotBlank private String specificAddress;
 
-    private String note;
+  private String note;
 
-    @NotBlank
-    private String paymentMethod; // 'COD', 'BANK_TRANSFER', 'VNPAY', 'MOMO'
+  @NotBlank private String paymentMethod; // 'COD', 'BANK_TRANSFER', 'VNPAY', 'MOMO'
+
+    private java.util.UUID userVoucherId;
 
     @NotEmpty
     private List<CartItemReq> items;
 
-    @Data
-    public static class CartItemReq {
-        @NotNull
-        private java.util.UUID productId;
+  @Data
+  public static class CartItemReq {
+    @NotNull private java.util.UUID productId;
 
-        @NotNull
-        private Integer quantity;
-    }
+    @NotNull private Integer quantity;
+  }
 }

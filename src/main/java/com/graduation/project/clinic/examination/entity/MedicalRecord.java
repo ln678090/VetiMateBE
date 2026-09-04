@@ -16,18 +16,20 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
-
 @Entity
-@Table(name = "medical_records", uniqueConstraints = @UniqueConstraint(name = "uk_medical_records_appointment", columnNames = "appointment_id"))
+@Table(
+    name = "medical_records",
+    uniqueConstraints =
+        @UniqueConstraint(name = "uk_medical_records_appointment", columnNames = "appointment_id"))
 @Getter
 @Setter
 @NoArgsConstructor

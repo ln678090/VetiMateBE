@@ -35,20 +35,17 @@ public class ProductReq {
 
   private BigDecimal originalPrice;
 
-  @NotNull(message = "Số lượng kho không được để trống")
-  private Integer stockQuantity;
+  @Builder.Default
+  private Integer stockQuantity = 0;
 
   @NotBlank(message = "URL ảnh không được để trống")
   private String imageUrl;
 
   private String galleryUrls;
 
-  @Builder.Default
-  private Boolean isFeatured = false;
-  
-  @Builder.Default
-  private Boolean isNew = false;
-  
-  @Builder.Default
-  private Boolean isActive = true;
+  @Builder.Default private Boolean isFeatured = false;
+
+  @Builder.Default private Boolean isNew = false;
+
+  @Builder.Default private Boolean isActive = true;
 }

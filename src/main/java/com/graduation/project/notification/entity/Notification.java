@@ -2,10 +2,9 @@ package com.graduation.project.notification.entity;
 
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.Instant;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "notifications")

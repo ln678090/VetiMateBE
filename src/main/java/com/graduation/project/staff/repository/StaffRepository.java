@@ -2,15 +2,13 @@ package com.graduation.project.staff.repository;
 
 import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.staff.entity.StaffRoleType;
-
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.util.Optional;
-import java.util.UUID;
 
 public interface StaffRepository extends JpaRepository<Staff, UUID> {
   Optional<Staff> findByUserIdAndActiveTrue(UUID userId);
@@ -19,7 +17,8 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
 
   boolean existsByUserIdAndIdNot(UUID userId, UUID id);
 
-  @Query("""
+  @Query(
+      """
       select staff
       from Staff staff
       where (
@@ -43,7 +42,5 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
       @Param("active") Boolean active,
       Pageable pageable);
 
-  Optional<Staff> findByUserIdAndRoleTypeAndActiveTrue(
-      UUID userId,
-      StaffRoleType roleType);
+  Optional<Staff> findByUserIdAndRoleTypeAndActiveTrue(UUID userId, StaffRoleType roleType);
 }

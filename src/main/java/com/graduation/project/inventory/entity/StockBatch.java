@@ -64,4 +64,21 @@ public class StockBatch {
   @Column(name = "received_at", nullable = false)
   @Builder.Default
   private OffsetDateTime receivedAt = OffsetDateTime.now();
+
+  /** Kiểm tra lô hàng đã hết chưa */
+  public boolean isExhausted() {
+    return remainingQty != null && remainingQty.compareTo(BigDecimal.ZERO) <= 0;
+  }
+
+  /** Kiểm tra lô hàng đã hết hạn chưa */
+  public boolean isExpired() {
+    return expiryDate != null && expiryDate.isBefore(LocalDate.now());
+  }
+
+  /** Kiểm tra lô hàng sắp hết hạn (trong N ngày tới) */
+  public boolean isNearExpiry(int days) {
+    return expiryDate != null
+        && !isExpired()
+        && expiryDate.isBefore(LocalDate.now().plusDays(days));
+  }
 }

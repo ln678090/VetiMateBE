@@ -14,13 +14,6 @@ import com.graduation.project.clinic.repository.ClinicServiceRepository;
 import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.service.AppointmentService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
-
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,6 +24,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -50,15 +48,18 @@ public class AppointmentServiceImpl implements AppointmentService {
   public List<AvailableSlotResponse> getAvailableSlots(UUID serviceId, LocalDate date) {
 
     // 1. Lấy duration của dịch vụ (fail-fast nếu không tồn tại)
-    ClinicService service = clinicServiceRepository.findById(serviceId)
-        .orElseThrow(() -> new ResourceNotFoundException("Service không tồn tại: " + serviceId));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(serviceId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Service không tồn tại: " + serviceId));
     int durationMin = service.getDurationMin();
 
     // 2. Gom lịch đã đặt trong ngày (1 query)
     Instant startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
     Instant endOfDay = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-    List<Appointment> booked = appointmentRepository
-        .findActiveByServiceAndDay(serviceId, startOfDay, endOfDay);
+    List<Appointment> booked =
+        appointmentRepository.findActiveByServiceAndDay(serviceId, startOfDay, endOfDay);
 
     // 3. Sinh slot 8h -> 17h theo duration, loại overlap + slot quá khứ
     LocalDateTime now = LocalDateTime.now();
@@ -71,8 +72,12 @@ public class AppointmentServiceImpl implements AppointmentService {
       LocalDateTime slotEndDt = LocalDateTime.of(date, slotEnd);
 
       boolean isPast = slotStartDt.isBefore(now);
-      boolean overlaps = booked.stream().anyMatch(a -> slotStartDt.isBefore(ChronoLocalDateTime.from(a.getEndAt()))
-          && slotEndDt.isAfter(ChronoLocalDateTime.from(a.getStartAt())));
+      boolean overlaps =
+          booked.stream()
+              .anyMatch(
+                  a ->
+                      slotStartDt.isBefore(ChronoLocalDateTime.from(a.getEndAt()))
+                          && slotEndDt.isAfter(ChronoLocalDateTime.from(a.getStartAt())));
 
       if (!isPast && !overlaps) {
         slots.add(new AvailableSlotResponse(cursor, slotEnd, true));
@@ -87,12 +92,19 @@ public class AppointmentServiceImpl implements AppointmentService {
   public AppointmentDto create(CreateAppointmentRequest request) {
     // 1. Lấy pet + customer (JOIN FETCH) — BE tự suy customer từ pet, KHÔNG nhận từ
     // client
-    Pet pet = petRepository.findByIdWithCustomer(request.petId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy pet: " + request.petId()));
+    Pet pet =
+        petRepository
+            .findByIdWithCustomer(request.petId())
+            .orElseThrow(
+                () -> new IllegalArgumentException("Không tìm thấy pet: " + request.petId()));
 
     // 2. Lấy service + kiểm tra đang active
-    ClinicService service = clinicServiceRepository.findById(request.serviceId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy dịch vụ: " + request.serviceId()));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(request.serviceId())
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Không tìm thấy dịch vụ: " + request.serviceId()));
     if (Boolean.FALSE.equals(service.getIsActive())) {
       throw new IllegalStateException("Dịch vụ đã ngừng hoạt động: " + service.getName());
     }
@@ -103,22 +115,24 @@ public class AppointmentServiceImpl implements AppointmentService {
     Instant endAt = startAt.plus(durationMin, ChronoUnit.MINUTES);
 
     // 4. Chống trùng giờ (loại CANCELLED)
-    if (appointmentRepository.existsOverlap(service.getId(), startAt, endAt, AppointmentStatus.CANCELLED)) {
+    if (appointmentRepository.existsOverlap(
+        service.getId(), startAt, endAt, AppointmentStatus.CANCELLED)) {
       throw new IllegalStateException("Khung giờ này đã có lịch cho dịch vụ: " + service.getName());
     }
 
     // 5. Tạo appointment với dữ liệu BE tự tính
-    Appointment appointment = Appointment.builder()
-        .customer(pet.getCustomer())
-        .pet(pet)
-        .service(service)
-        .priceSnapshot(service.getPrice())
-        .durationMin(durationMin)
-        .startAt(startAt)
-        .endAt(endAt)
-        .status(AppointmentStatus.SCHEDULED)
-        .note(request.note())
-        .build();
+    Appointment appointment =
+        Appointment.builder()
+            .customer(pet.getCustomer())
+            .pet(pet)
+            .service(service)
+            .priceSnapshot(service.getPrice())
+            .durationMin(durationMin)
+            .startAt(startAt)
+            .endAt(endAt)
+            .status(AppointmentStatus.SCHEDULED)
+            .note(request.note())
+            .build();
 
     return appointmentMapper.toDto(appointmentRepository.save(appointment));
   }
@@ -126,23 +140,28 @@ public class AppointmentServiceImpl implements AppointmentService {
   @Override
   @Transactional(readOnly = true)
   public AppointmentDto getById(UUID id) {
-    Appointment appointment = appointmentRepository.findByIdFull(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
     return appointmentMapper.toDto(appointment);
   }
 
   @Override
   @Transactional(readOnly = true)
   public Page<AppointmentDto> getByCustomer(UUID customerId, Pageable pageable) {
-    return appointmentRepository.findByCustomerIdFull(customerId, pageable)
+    return appointmentRepository
+        .findByCustomerIdFull(customerId, pageable)
         .map(appointmentMapper::toDto);
   }
 
   @Override
   @Transactional
   public AppointmentDto updateStatus(UUID id, UpdateAppointmentStatusRequest request) {
-    Appointment appointment = appointmentRepository.findByIdFull(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
     appointment.setStatus(request.status());
     return appointmentMapper.toDto(appointmentRepository.save(appointment));
   }
@@ -150,8 +169,10 @@ public class AppointmentServiceImpl implements AppointmentService {
   @Override
   @Transactional
   public AppointmentDto updateCallStatus(UUID id, boolean isCalled) {
-    Appointment appointment = appointmentRepository.findByIdFull(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch khám: " + id));
     appointment.setIsCalledToConfirm(isCalled);
     return appointmentMapper.toDto(appointmentRepository.save(appointment));
   }
@@ -159,30 +180,17 @@ public class AppointmentServiceImpl implements AppointmentService {
   @Override
   @Transactional(readOnly = true)
   public Page<AppointmentDto> getForManagement(
-      LocalDate startDate,
-      LocalDate endDate,
-      AppointmentStatus status,
-      Pageable pageable) {
-    
+      LocalDate startDate, LocalDate endDate, AppointmentStatus status, Pageable pageable) {
+
     LocalDate sDate = startDate != null ? startDate : LocalDate.now(ZONE);
     LocalDate eDate = endDate != null ? endDate : LocalDate.now(ZONE);
 
-    Instant startAt = sDate
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant startAt = sDate.atStartOfDay(ZONE).toInstant();
 
-    Instant endAt = eDate
-        .plusDays(1)
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant endAt = eDate.plusDays(1).atStartOfDay(ZONE).toInstant();
 
     return appointmentRepository
-        .findForManagement(
-            startAt,
-            endAt,
-            status,
-            pageable)
+        .findForManagement(startAt, endAt, status, pageable)
         .map(appointmentMapper::toDto);
   }
-
 }

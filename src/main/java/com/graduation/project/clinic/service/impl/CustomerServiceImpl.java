@@ -9,15 +9,13 @@ import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.user.entity.User;
 import com.graduation.project.user.repository.UserRepository;
-
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-                                                                                                                                                                                                                                  
 @Service
 @RequiredArgsConstructor
 public class CustomerServiceImpl implements CustomerService {
@@ -25,27 +23,32 @@ public class CustomerServiceImpl implements CustomerService {
   private final CustomerRepository customerRepository;
 
   private final CustomerMapper customerMapper;
-private final UserRepository userRepository;
+  private final UserRepository userRepository;
 
-@Override
-@Transactional
-public CustomerDto getOrCreateForCurrentUser(UUID userId) {
-    return customerRepository.findByUserId(userId)
+  @Override
+  @Transactional
+  public CustomerDto getOrCreateForCurrentUser(UUID userId) {
+    return customerRepository
+        .findByUserId(userId)
         .map(customerMapper::toDto)
-        .orElseGet(() -> {
-            User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User không tồn tại"));
+        .orElseGet(
+            () -> {
+              User user =
+                  userRepository
+                      .findById(userId)
+                      .orElseThrow(() -> new ResourceNotFoundException("User không tồn tại"));
 
-            Customer customer = Customer.builder()
-                .userId(userId)
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                    .phone("null")
-                .build();
+              Customer customer =
+                  Customer.builder()
+                      .userId(userId)
+                      .fullName(user.getFullName())
+                      .email(user.getEmail())
+                      .phone("null")
+                      .build();
 
-            return customerMapper.toDto(customerRepository.save(customer));
-        });
-}
+              return customerMapper.toDto(customerRepository.save(customer));
+            });
+  }
 
   @Override
   @Transactional
@@ -53,20 +56,23 @@ public CustomerDto getOrCreateForCurrentUser(UUID userId) {
     if (request.phone() != null && customerRepository.existsByPhone(request.phone())) {
       throw new IllegalStateException("Số điện thoại đã tồn tại: " + request.phone());
     }
-    Customer customer = Customer.builder()
-        .fullName(request.fullName())
-        .phone(request.phone())
-        .email(request.email())
-        .address(request.address())
-        .build();
+    Customer customer =
+        Customer.builder()
+            .fullName(request.fullName())
+            .phone(request.phone())
+            .email(request.email())
+            .address(request.address())
+            .build();
     return customerMapper.toDto(customerRepository.save(customer));
   }
 
   @Override
   @Transactional
   public CustomerDto update(UUID id, CustomerRequest request) {
-    Customer customer = customerRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
+    Customer customer =
+        customerRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
     customer.setFullName(request.fullName());
     customer.setPhone(request.phone());
     customer.setEmail(request.email());
@@ -77,8 +83,10 @@ public CustomerDto getOrCreateForCurrentUser(UUID userId) {
   @Override
   @Transactional(readOnly = true)
   public CustomerDto getById(UUID id) {
-    Customer customer = customerRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
+    Customer customer =
+        customerRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
     return customerMapper.toDto(customer);
   }
 

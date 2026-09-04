@@ -4,8 +4,8 @@ import com.graduation.project.catalog.entity.Brand;
 import com.graduation.project.catalog.entity.Category;
 import com.graduation.project.catalog.repository.BrandRepository;
 import com.graduation.project.catalog.repository.CategoryRepository;
-import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.req.ProductFilterRequest;
+import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
 import com.graduation.project.product.entity.Product;
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +38,7 @@ public class ProductServiceImpl implements ProductService {
   private final ProductRepository productRepository;
   private final CategoryRepository categoryRepository;
   private final BrandRepository brandRepository;
+  private final com.graduation.project.clinic.repository.InvoiceReviewRepository invoiceReviewRepository;
   private final ProductMapper productMapper;
 
   @Override
@@ -92,34 +94,39 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp createProduct(ProductReq req) {
-    Category category = categoryRepository.findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
-    
-    Brand brand = brandRepository.findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     String slug = generateSlug(req.getName());
     if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()) {
       slug = slug + "-" + System.currentTimeMillis();
     }
 
-    Product product = Product.builder()
-        .name(req.getName())
-        .slug(slug)
-        .description(req.getDescription())
-        .shortDesc(req.getShortDesc())
-        .category(category)
-        .brand(brand)
-        .petType(req.getPetType())
-        .price(req.getPrice())
-        .originalPrice(req.getOriginalPrice())
-        .stockQuantity(req.getStockQuantity())
-        .imageUrl(req.getImageUrl())
-        .galleryUrls(req.getGalleryUrls())
-        .isFeatured(req.getIsFeatured())
-        .isNew(req.getIsNew())
-        .isActive(req.getIsActive())
-        .build();
+    Product product =
+        Product.builder()
+            .name(req.getName())
+            .slug(slug)
+            .description(req.getDescription())
+            .shortDesc(req.getShortDesc())
+            .category(category)
+            .brand(brand)
+            .petType(req.getPetType())
+            .price(req.getPrice())
+            .originalPrice(req.getOriginalPrice())
+            .stockQuantity(req.getStockQuantity())
+            .imageUrl(req.getImageUrl())
+            .galleryUrls(req.getGalleryUrls())
+            .isFeatured(req.getIsFeatured())
+            .isNew(req.getIsNew())
+            .isActive(req.getIsActive())
+            .build();
 
     product = productRepository.save(product);
     return productMapper.toResp(product);
@@ -128,18 +135,25 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp updateProduct(UUID id, ProductReq req) {
-    Product product = productRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
 
-    Category category = categoryRepository.findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
-    
-    Brand brand = brandRepository.findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     if (!product.getName().equals(req.getName())) {
       String slug = generateSlug(req.getName());
-      if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent() && !product.getSlug().equals(slug)) {
+      if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()
+          && !product.getSlug().equals(slug)) {
         slug = slug + "-" + System.currentTimeMillis();
       }
       product.setSlug(slug);
@@ -167,10 +181,56 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public void deleteProduct(UUID id) {
-    Product product = productRepository.findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
     product.setIsActive(false); // Soft delete
     productRepository.save(product);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<com.graduation.project.product.dto.resp.ProductReviewResp> getProductReviews(String slug) {
+      List<com.graduation.project.clinic.entity.InvoiceReview> reviews = invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(slug);
+      
+      return reviews.stream().map(review -> {
+          String userName = review.getCustomer() != null ? review.getCustomer().getFullName() : "Khách hàng";
+          String avatarStr = "";
+          if (userName != null && !userName.isEmpty()) {
+              String[] parts = userName.trim().split(" ");
+              if (parts.length > 0) {
+                  avatarStr = parts[parts.length - 1].substring(0, 1).toUpperCase();
+                  if (parts.length > 1) {
+                      avatarStr = parts[0].substring(0, 1).toUpperCase() + avatarStr;
+                  }
+              }
+          }
+          if (avatarStr.isEmpty()) avatarStr = "KH";
+          
+          return com.graduation.project.product.dto.resp.ProductReviewResp.builder()
+              .id(review.getId())
+              .user(userName)
+              .avatar(avatarStr)
+              .rating(review.getRating())
+              .createdAt(review.getCreatedAt())
+              .title(getReviewTitle(review.getRating()))
+              .content(review.getComment())
+              .helpful(0)
+              .build();
+      }).collect(Collectors.toList());
+  }
+
+  private String getReviewTitle(Integer rating) {
+      if (rating == null) return "Tuyệt vời";
+      return switch (rating) {
+          case 1 -> "Rất không hài lòng";
+          case 2 -> "Không hài lòng";
+          case 3 -> "Bình thường";
+          case 4 -> "Hài lòng";
+          case 5 -> "Tuyệt vời";
+          default -> "Tuyệt vời";
+      };
   }
 
   private String generateSlug(String input) {

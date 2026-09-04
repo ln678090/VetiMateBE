@@ -1,21 +1,24 @@
 package com.graduation.project.auth.controller;
 
+import com.graduation.project.auth.config.custom.CustomUserDetails;
 import com.graduation.project.auth.dto.privateDto.TokenPair;
+import com.graduation.project.auth.dto.req.ChangePasswordRequest;
 import com.graduation.project.auth.dto.req.LoginRequest;
 import com.graduation.project.auth.dto.req.RegisterRequest;
-import com.graduation.project.auth.dto.req.ChangePasswordRequest;
-import com.graduation.project.auth.config.custom.CustomUserDetails;
 import com.graduation.project.auth.dto.resp.AuthResponse;
 import com.graduation.project.auth.service.AuthService;
 import com.graduation.project.common.resp.ApiResp;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,9 +26,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -146,11 +146,10 @@ public class AuthController {
 
   @PutMapping("/change-password")
   public ResponseEntity<ApiResp<String>> changePassword(
-      @Valid @RequestBody ChangePasswordRequest request,
-      Authentication authentication) {
+      @Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
     Object principal = authentication.getPrincipal();
     UUID userId;
-    
+
     if (principal instanceof Jwt jwt) {
       userId = UUID.fromString(jwt.getSubject());
     } else if (principal instanceof CustomUserDetails userDetails) {
