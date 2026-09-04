@@ -18,6 +18,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
   boolean existsByUsername(String username);
 
+  @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
   Optional<User> findByEmail(String email);
 
   @Query("""

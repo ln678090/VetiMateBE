@@ -1,18 +1,20 @@
 package com.graduation.project.inventory.dto.resp;
 
+import com.graduation.project.inventory.entity.VoucherStatus;
+import com.graduation.project.inventory.entity.VoucherType;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
-import lombok.Builder;
-import lombok.Data;
 
-@Data
-@Builder
-public class StockVoucherResp {
-  private UUID id;
-  private String type;
-  private String status;
-  private String createdBy;
-  private String approvedBy;
-  private String note;
-  private String createdAt;
-  private String approvedAt;
-}
+public record StockVoucherResp(
+    UUID id,
+    VoucherType type,
+    VoucherStatus status,
+    UUID createdBy,
+    UUID approvedBy,
+    OffsetDateTime approvedAt,
+    String note,
+    List<StockVoucherItemResp> items,
+    OffsetDateTime createdAt,
+    OffsetDateTime updatedAt,
+    int itemCount) {}

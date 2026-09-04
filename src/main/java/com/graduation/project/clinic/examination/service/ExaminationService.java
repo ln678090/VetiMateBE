@@ -148,7 +148,7 @@ public class ExaminationService {
     }
 
     Map<UUID, Medicine> medicineById = medicineRepository
-        .findAllByIdInAndActiveTrue(medicineIds)
+        .findAllByIdInAndIsActiveTrue(medicineIds)
         .stream()
         .collect(
             Collectors.toMap(
@@ -229,7 +229,7 @@ public class ExaminationService {
 
   public List<MedicineOptionResponse> getMedicines() {
     return medicineRepository
-        .findAllByActiveTrueOrderByNameAsc()
+        .findByIsActiveTrueOrderByNameAsc()
         .stream()
         .map(
             medicine -> new MedicineOptionResponse(
