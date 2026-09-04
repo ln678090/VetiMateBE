@@ -33,6 +33,9 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final StaffRepository staffRepository;
     private final NotificationService notificationService;
+    private final com.graduation.project.loyalty.service.LoyaltyService loyaltyService;
+    private final com.graduation.project.loyalty.repository.UserVoucherRepository userVoucherRepository;
+    private final com.graduation.project.clinic.repository.InvoiceReviewRepository invoiceReviewRepository;
 
     @Override
     @Transactional
@@ -97,7 +100,35 @@ public class OrderServiceImpl implements OrderService {
         }
 
         invoice.setSubtotal(total);
-        invoice.setTotalAmount(total);
+        
+        BigDecimal discount = BigDecimal.ZERO;
+        if (request.getUserVoucherId() != null) {
+            com.graduation.project.loyalty.entity.UserVoucher uv = userVoucherRepository.findById(request.getUserVoucherId())
+                    .orElseThrow(() -> new RuntimeException("Voucher not found"));
+            if (uv.getIsUsed()) throw new RuntimeException("Voucher already used");
+            if (!uv.getUser().getId().equals(currentUserId)) throw new RuntimeException("Not your voucher");
+            
+            com.graduation.project.loyalty.entity.Voucher v = uv.getVoucher();
+            if (v.getMinOrderAmount() != null && total.compareTo(v.getMinOrderAmount()) < 0) {
+                throw new RuntimeException("Order amount not enough for this voucher");
+            }
+            
+            if (v.getDiscountType() == com.graduation.project.loyalty.entity.DiscountType.FIXED) {
+                discount = v.getDiscountValue();
+            } else {
+                discount = total.multiply(v.getDiscountValue()).divide(new BigDecimal("100"));
+                if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
+                    discount = v.getMaxDiscount();
+                }
+            }
+            
+            uv.setIsUsed(true);
+            uv.setUsedAt(java.time.LocalDateTime.now());
+            userVoucherRepository.save(uv);
+        }
+        
+        invoice.setDiscountAmount(discount);
+        invoice.setTotalAmount(total.subtract(discount).max(BigDecimal.ZERO));
 
         invoice = invoiceRepository.save(invoice);
 
@@ -225,6 +256,10 @@ public class OrderServiceImpl implements OrderService {
         invoice.setStatus(newStatus);
         invoice = invoiceRepository.save(invoice);
         
+        if ("DELIVERED".equals(newStatus) && invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
+            loyaltyService.earnPoints(invoice.getCustomer().getUserId(), invoice.getTotalAmount(), invoice.getId());
+        }
+        
         if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
             String statusStr = switch (newStatus) {
                 case "CONFIRMED" -> "đã được xác nhận";
@@ -306,6 +341,55 @@ public class OrderServiceImpl implements OrderService {
         return mapToResponse(invoice);
     }
 
+    @Override
+    @Transactional
+    public OrderResponse reviewOrder(UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.ReviewOrderReq req) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (invoice.getCustomer().getUserId() != null && !invoice.getCustomer().getUserId().equals(currentUserId)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        if (!"DELIVERED".equals(invoice.getStatus())) {
+            throw new RuntimeException("Chỉ có thể đánh giá đơn hàng đã giao thành công");
+        }
+
+        if (Boolean.TRUE.equals(invoice.getIsReviewed())) {
+            throw new RuntimeException("Đơn hàng này đã được đánh giá");
+        }
+
+        invoice.setIsReviewed(true);
+        invoice = invoiceRepository.save(invoice);
+
+        for (com.graduation.project.clinic.dto.req.ReviewProductReq reviewReq : req.getReviews()) {
+            com.graduation.project.product.entity.Product product = productRepository.findById(reviewReq.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + reviewReq.getProductId()));
+            
+            com.graduation.project.clinic.entity.InvoiceReview review = com.graduation.project.clinic.entity.InvoiceReview.builder()
+                    .invoice(invoice)
+                    .customer(invoice.getCustomer())
+                    .product(product)
+                    .rating(reviewReq.getRating())
+                    .comment(reviewReq.getComment())
+                    .build();
+            invoiceReviewRepository.save(review);
+
+            // Cập nhật rating và review_count vào db (Product)
+            List<com.graduation.project.clinic.entity.InvoiceReview> allReviews = invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(product.getSlug());
+            int newReviewCount = allReviews.size();
+            double newRating = allReviews.stream().mapToInt(com.graduation.project.clinic.entity.InvoiceReview::getRating).average().orElse(5.0);
+            
+            product.setReviewCount(newReviewCount);
+            product.setRating(java.math.BigDecimal.valueOf(newRating));
+            productRepository.save(product);
+        }
+
+        loyaltyService.addPoints(currentUserId, 50, "Đánh giá đơn hàng " + invoice.getInvoiceCode(), invoice.getId());
+
+        return mapToResponse(invoice);
+    }
+
     private OrderResponse mapToResponse(Invoice invoice) {
         String feStatus = switch (invoice.getStatus()) {
             case "DRAFT" -> "PENDING";
@@ -337,7 +421,8 @@ public class OrderServiceImpl implements OrderService {
                 .id(invoice.getId())
                 .code(invoice.getInvoiceCode())
                 .status(feStatus)
-                .totalAmount(invoice.getTotalAmount())
+                .totalAmount(invoice.getSubtotal())
+                .discountAmount(invoice.getDiscountAmount())
                 .shippingFee(BigDecimal.ZERO)
                 .finalAmount(invoice.getTotalAmount())
                 .createdAt(invoice.getCreatedAt())
@@ -347,6 +432,7 @@ public class OrderServiceImpl implements OrderService {
                 .note(invoice.getNote())
                 .customerName(invoice.getCustomer().getFullName())
                 .customerPhone(invoice.getCustomer().getPhone())
+                .isReviewed(invoice.getIsReviewed())
                 .items(itemResponses)
                 .build();
     }

@@ -102,6 +102,15 @@ public class OrderController {
             @Valid @RequestBody com.graduation.project.clinic.dto.req.ProcessCancelReq request) {
         return ResponseEntity.ok(orderService.processCancelRequest(id, request));
     }
+
+    @PostMapping("/{id}/review")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<OrderResponse> reviewOrder(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.graduation.project.clinic.dto.req.ReviewOrderReq request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(orderService.reviewOrder(id, UUID.fromString(jwt.getSubject()), request));
+    }
 }
 
 

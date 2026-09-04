@@ -86,6 +86,15 @@ public class ProductController {
         .build();
   }
 
+  @GetMapping("/{slug}/reviews")
+  public ApiResp<List<com.graduation.project.product.dto.resp.ProductReviewResp>> getProductReviews(@PathVariable String slug) {
+    return ApiResp.<List<com.graduation.project.product.dto.resp.ProductReviewResp>>builder()
+        .message("Lấy đánh giá sản phẩm thành công")
+        .data(productService.getProductReviews(slug))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
   @GetMapping("/featured")
   public ApiResp<List<ProductResp>> getFeaturedProducts(
       @RequestParam(required = false, defaultValue = "8") Integer limit) {
