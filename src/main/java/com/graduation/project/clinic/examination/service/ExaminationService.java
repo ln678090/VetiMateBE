@@ -124,7 +124,7 @@ public class ExaminationService {
     }
 
     Map<UUID, Medicine> medicineById =
-        medicineRepository.findAllByIdInAndActiveTrue(medicineIds).stream()
+        medicineRepository.findAllByIdInAndIsActiveTrue(medicineIds).stream()
             .collect(Collectors.toMap(Medicine::getId, Function.identity()));
 
     if (medicineById.size() != medicineIds.size()) {
@@ -187,7 +187,7 @@ public class ExaminationService {
   }
 
   public List<MedicineOptionResponse> getMedicines() {
-    return medicineRepository.findAllByActiveTrueOrderByNameAsc().stream()
+    return medicineRepository.findByIsActiveTrueOrderByNameAsc().stream()
         .map(
             medicine ->
                 new MedicineOptionResponse(

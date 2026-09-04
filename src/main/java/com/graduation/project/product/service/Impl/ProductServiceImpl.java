@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +38,8 @@ public class ProductServiceImpl implements ProductService {
   private final ProductRepository productRepository;
   private final CategoryRepository categoryRepository;
   private final BrandRepository brandRepository;
+  private final com.graduation.project.clinic.repository.InvoiceReviewRepository
+      invoiceReviewRepository;
   private final ProductMapper productMapper;
 
   @Override
@@ -185,6 +188,56 @@ public class ProductServiceImpl implements ProductService {
             .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
     product.setIsActive(false); // Soft delete
     productRepository.save(product);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<com.graduation.project.product.dto.resp.ProductReviewResp> getProductReviews(
+      String slug) {
+    List<com.graduation.project.clinic.entity.InvoiceReview> reviews =
+        invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(slug);
+
+    return reviews.stream()
+        .map(
+            review -> {
+              String userName =
+                  review.getCustomer() != null ? review.getCustomer().getFullName() : "Khách hàng";
+              String avatarStr = "";
+              if (userName != null && !userName.isEmpty()) {
+                String[] parts = userName.trim().split(" ");
+                if (parts.length > 0) {
+                  avatarStr = parts[parts.length - 1].substring(0, 1).toUpperCase();
+                  if (parts.length > 1) {
+                    avatarStr = parts[0].substring(0, 1).toUpperCase() + avatarStr;
+                  }
+                }
+              }
+              if (avatarStr.isEmpty()) avatarStr = "KH";
+
+              return com.graduation.project.product.dto.resp.ProductReviewResp.builder()
+                  .id(review.getId())
+                  .user(userName)
+                  .avatar(avatarStr)
+                  .rating(review.getRating())
+                  .createdAt(review.getCreatedAt())
+                  .title(getReviewTitle(review.getRating()))
+                  .content(review.getComment())
+                  .helpful(0)
+                  .build();
+            })
+        .collect(Collectors.toList());
+  }
+
+  private String getReviewTitle(Integer rating) {
+    if (rating == null) return "Tuyệt vời";
+    return switch (rating) {
+      case 1 -> "Rất không hài lòng";
+      case 2 -> "Không hài lòng";
+      case 3 -> "Bình thường";
+      case 4 -> "Hài lòng";
+      case 5 -> "Tuyệt vời";
+      default -> "Tuyệt vời";
+    };
   }
 
   private String generateSlug(String input) {

@@ -17,6 +17,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -41,6 +42,7 @@ public class ClinicServiceController {
 
   // POST /api/clinic/services - Tạo dịch vụ
   @PostMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<ClinicServiceDto>> create(
       @Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.create(request);
@@ -54,6 +56,7 @@ public class ClinicServiceController {
 
   // PUT /api/clinic/services/{id} - Sửa dịch vụ
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<ClinicServiceDto>> update(
       @PathVariable UUID id, @Valid @RequestBody ClinicServiceRequest request) {
     ClinicServiceDto dto = clinicServiceService.update(id, request);
@@ -86,6 +89,7 @@ public class ClinicServiceController {
 
   // DELETE /api/clinic/services/{id} - Xóa dịch vụ
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
   public ResponseEntity<ApiResp<Void>> delete(@PathVariable UUID id) {
     clinicServiceService.delete(id);
     return ResponseEntity.ok(ApiResp.<Void>builder().message("Xóa dịch vụ thành công").build());

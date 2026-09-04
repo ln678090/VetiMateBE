@@ -4,6 +4,7 @@ import com.graduation.project.product.dto.req.ProductFilterRequest;
 import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
+import com.graduation.project.product.dto.resp.ProductReviewResp;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +21,9 @@ public interface ProductService {
 
   /** Featured cho landing page */
   List<ProductResp> getFeaturedProducts(int limit);
+
+  /** Get product reviews */
+  List<ProductReviewResp> getProductReviews(String slug);
 
   // ===== Quản trị (Staff) =====
   ProductResp createProduct(ProductReq req);

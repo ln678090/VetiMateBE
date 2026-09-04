@@ -81,6 +81,10 @@ public class Invoice {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  @Column(name = "is_reviewed")
+  @Builder.Default
+  private Boolean isReviewed = false;
+
   @PrePersist
   void onCreate() {
     Instant now = Instant.now();

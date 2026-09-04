@@ -5,6 +5,7 @@ import com.graduation.project.product.dto.req.ProductFilterRequest;
 import com.graduation.project.product.dto.req.ProductReq;
 import com.graduation.project.product.dto.resp.ProductListResp;
 import com.graduation.project.product.dto.resp.ProductResp;
+import com.graduation.project.product.dto.resp.ProductReviewResp;
 import com.graduation.project.product.entity.Product.PetType;
 import com.graduation.project.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -85,6 +87,15 @@ public class ProductController {
         .build();
   }
 
+  @GetMapping("/{slug}/reviews")
+  public ApiResp<List<ProductReviewResp>> getProductReviews(@PathVariable String slug) {
+    return ApiResp.<List<ProductReviewResp>>builder()
+        .message("Lấy đánh giá sản phẩm thành công")
+        .data(productService.getProductReviews(slug))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
   @GetMapping("/featured")
   public ApiResp<List<ProductResp>> getFeaturedProducts(
       @RequestParam(required = false, defaultValue = "8") Integer limit) {
@@ -98,6 +109,7 @@ public class ProductController {
   // ============ Quản trị (Staff) ============
 
   @PostMapping
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<ProductResp> createProduct(@Valid @RequestBody ProductReq req) {
     return ApiResp.<ProductResp>builder()
         .message("Thêm sản phẩm thành công")
@@ -107,6 +119,7 @@ public class ProductController {
   }
 
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<ProductResp> updateProduct(
       @PathVariable UUID id, @Valid @RequestBody ProductReq req) {
     return ApiResp.<ProductResp>builder()
@@ -117,6 +130,7 @@ public class ProductController {
   }
 
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ApiResp<Void> deleteProduct(@PathVariable UUID id) {
     productService.deleteProduct(id);
     return ApiResp.<Void>builder()

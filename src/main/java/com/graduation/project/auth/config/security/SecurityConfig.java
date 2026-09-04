@@ -109,6 +109,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/products/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/clinic/services/**")
+                    .permitAll()
                     .requestMatchers("/api/tracking/action")
                     .permitAll()
                     .requestMatchers("/", "/index.html", "/dist/**", "/assets/**")
