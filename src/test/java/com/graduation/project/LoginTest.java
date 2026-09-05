@@ -2,11 +2,13 @@ package com.graduation.project;
 
 import com.graduation.project.auth.dto.req.LoginRequest;
 import com.graduation.project.auth.service.AuthService;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
+@Disabled("Requires specific db data")
 public class LoginTest {
 
   @Autowired private AuthService authService;
