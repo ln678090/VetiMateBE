@@ -2,7 +2,10 @@ package com.graduation.project.notification.dto;
 
 import java.time.Instant;
 import java.util.UUID;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
