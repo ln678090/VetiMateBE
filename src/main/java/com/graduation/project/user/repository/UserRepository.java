@@ -20,6 +20,21 @@ public interface UserRepository extends JpaRepository<User, UUID> {
   @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
   Optional<User> findByEmail(String email);
 
+  @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
+  Page<User> findAll(Pageable pageable);
+
+  @Query("""
+      select user
+      from User user
+      where not exists (
+          select role.id
+          from user.roles role
+          where role.name = 'ROLE_ADMIN'
+      )
+  """)
+  @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
+  Page<User> findNonAdminUsers(Pageable pageable);
+
   @Query(
       """
       select user

@@ -148,3 +148,33 @@ VALUES (
 ON CONFLICT (user_id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     role_type = EXCLUDED.role_type;
+
+-- ============================================================
+-- 4. QUẢN TRỊ VIÊN (ADMIN)
+-- ============================================================
+INSERT INTO users (
+    id, username, password, email, full_name, phone, enabled, created_at, updated_at, login_fail_count, mfa_enabled
+)
+VALUES (
+    'b70c3600-e29b-41d4-a716-446655440009',
+    'admin01',
+    '$argon2id$v=19$m=16384,t=2,p=1$mxPTpnoM4U+UAxSAAPiPFQ$biEj6BlWjxIps1rWAhFr0c+O4TY9YcrKxLjPL28kFZI',
+    'admin@vetimate.com',
+    'Quản trị viên Hệ thống',
+    '0901000099',
+    true,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    0,
+    false
+)
+ON CONFLICT (username) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    password = EXCLUDED.password,
+    phone = EXCLUDED.phone;
+
+INSERT INTO user_roles (user_id, role_id)
+VALUES
+    ('b70c3600-e29b-41d4-a716-446655440009', '550e8400-e29b-41d4-a716-446655440001')
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
