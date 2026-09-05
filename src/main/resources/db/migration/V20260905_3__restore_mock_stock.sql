@@ -1,0 +1,12 @@
+UPDATE products SET stock_quantity = 50 WHERE id = '550e8400-e29b-41d4-a716-446655440201'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 80 WHERE id = '550e8400-e29b-41d4-a716-446655440202'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 30 WHERE id = '550e8400-e29b-41d4-a716-446655440203'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 25 WHERE id = '550e8400-e29b-41d4-a716-446655440204'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 60 WHERE id = '550e8400-e29b-41d4-a716-446655440205'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 0 WHERE id = '550e8400-e29b-41d4-a716-446655440206'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 100 WHERE id = '550e8400-e29b-41d4-a716-446655440207'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 200 WHERE id = '550e8400-e29b-41d4-a716-446655440208'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 90 WHERE id = '550e8400-e29b-41d4-a716-446655440209'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 45 WHERE id = '550e8400-e29b-41d4-a716-446655440210'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 15 WHERE id = '550e8400-e29b-41d4-a716-446655440211'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);
+UPDATE products SET stock_quantity = 20 WHERE id = '550e8400-e29b-41d4-a716-446655440212'::uuid AND NOT EXISTS (SELECT 1 FROM stock_batches sb WHERE sb.product_id = products.id);

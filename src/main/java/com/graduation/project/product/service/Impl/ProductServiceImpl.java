@@ -114,6 +114,7 @@ public class ProductServiceImpl implements ProductService {
         Product.builder()
             .name(req.getName())
             .slug(slug)
+            .sku(req.getSku())
             .description(req.getDescription())
             .shortDesc(req.getShortDesc())
             .category(category)
@@ -161,6 +162,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     product.setName(req.getName());
+    product.setSku(req.getSku());
     product.setDescription(req.getDescription());
     product.setShortDesc(req.getShortDesc());
     product.setCategory(category);

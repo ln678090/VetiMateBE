@@ -115,6 +115,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/", "/index.html", "/dist/**", "/assets/**")
                     .permitAll()
+                    .requestMatchers("/ws/**")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .oauth2ResourceServer(

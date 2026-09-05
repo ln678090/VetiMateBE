@@ -148,3 +148,51 @@ VALUES (
 ON CONFLICT (user_id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     role_type = EXCLUDED.role_type;
+
+-- ============================================================
+-- 4. THỦ KHO (WAREHOUSE)
+-- ============================================================
+INSERT INTO users (
+    id, username, password, email, full_name, phone, enabled, created_at, updated_at, login_fail_count, mfa_enabled
+)
+VALUES (
+    'a0000000-0000-0000-0000-000000000008',
+    'warehouse01',
+    '$argon2id$v=19$m=16384,t=2,p=1$mxPTpnoM4U+UAxSAAPiPFQ$biEj6BlWjxIps1rWAhFr0c+O4TY9YcrKxLjPL28kFZI',
+    'warehouse@gmail.com',
+    'Thủ kho',
+    '0901000004',
+    true,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    0,
+    false
+)
+ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email;
+
+DELETE FROM user_roles WHERE user_id = 'a0000000-0000-0000-0000-000000000008';
+INSERT INTO user_roles (user_id, role_id)
+VALUES
+    ('a0000000-0000-0000-0000-000000000008', '550e8400-e29b-41d4-a716-446655440006')
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+INSERT INTO staff (
+    id, user_id, full_name, phone, role_type, base_salary, commission_rate, is_active, created_at, updated_at
+)
+VALUES (
+    'a0000000-0000-0000-0000-000000000009',
+    'a0000000-0000-0000-0000-000000000008',
+    'Thủ kho',
+    '0901000004',
+    'WAREHOUSE',
+    8000000.00,
+    0.00,
+    true,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+)
+ON CONFLICT (user_id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    role_type = EXCLUDED.role_type;

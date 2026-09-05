@@ -1,5 +1,6 @@
 package com.graduation.project.inventory.controller;
 
+import com.graduation.project.auth.utils.SecurityUtils;
 import com.graduation.project.common.resp.ApiResp;
 import com.graduation.project.inventory.dto.req.CreateVoucherRequest;
 import com.graduation.project.inventory.dto.resp.InventoryDashboardResp;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -78,10 +80,12 @@ public class StockController {
   }
 
   @PutMapping("/vouchers/{id}/approve")
-  public ApiResp<StockVoucherResp> approveVoucher(@PathVariable UUID id) {
+  public ApiResp<StockVoucherResp> approveVoucher(
+      @PathVariable UUID id, Authentication authentication) {
+    UUID currentUserId = SecurityUtils.currentUserId(authentication);
     return ApiResp.<StockVoucherResp>builder()
         .message("Duyệt phiếu kho thành công")
-        .data(stockService.approveVoucher(id))
+        .data(stockService.approveVoucher(id, currentUserId))
         .timestamp(Instant.now().toString())
         .build();
   }
