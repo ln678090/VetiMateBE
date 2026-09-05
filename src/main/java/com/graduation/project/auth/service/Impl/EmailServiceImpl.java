@@ -24,7 +24,8 @@ public class EmailServiceImpl implements EmailService {
   @Override
   public void sendOtpEmail(String toEmail, String otp) {
     if (senderEmail == null || senderEmail.isBlank()) {
-      log.warn("⚠️ [EMAIL_SERVICE] Chưa cấu hình MAIL_USERNAME / MAIL_PASSWORD trong .env.properties. Không gửi qua SMTP.");
+      log.warn(
+          "⚠️ [EMAIL_SERVICE] Chưa cấu hình MAIL_USERNAME / MAIL_PASSWORD trong .env.properties. Không gửi qua SMTP.");
       return;
     }
 
@@ -36,7 +37,8 @@ public class EmailServiceImpl implements EmailService {
       helper.setTo(toEmail);
       helper.setSubject("🔐 [VetiMate] Mã xác thực OTP đặt lại mật khẩu: " + otp);
 
-      String htmlContent = """
+      String htmlContent =
+          """
           <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #f0f0f0; border-radius: 16px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 24px;">
               <h2 style="color: #e11d48; margin: 0; font-size: 24px;">🐾 VetiMate</h2>
@@ -55,7 +57,8 @@ public class EmailServiceImpl implements EmailService {
               Trân trọng,<br/><strong>Đội ngũ VetiMate</strong>
             </p>
           </div>
-          """.formatted(toEmail, otp);
+          """
+              .formatted(toEmail, otp);
 
       helper.setText(htmlContent, true);
       mailSender.send(message);
