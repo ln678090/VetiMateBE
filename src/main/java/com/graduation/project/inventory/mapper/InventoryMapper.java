@@ -38,7 +38,8 @@ public interface InventoryMapper {
   @Mapping(target = "medicineName", source = "medicine.name")
   @Mapping(target = "productId", source = "product.id")
   @Mapping(target = "productName", source = "product.name")
-  @Mapping(target = "batchCode", source = "batch.batchCode")
+  @Mapping(target = "batchCode", source = "batchCode")
+  @Mapping(target = "expiryDate", source = "expiryDate")
   StockVoucherItemResp toVoucherItemResp(StockVoucherItem item);
 
   List<StockVoucherItemResp> toVoucherItemRespList(List<StockVoucherItem> items);

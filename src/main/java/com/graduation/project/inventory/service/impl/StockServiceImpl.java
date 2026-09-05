@@ -20,6 +20,7 @@ import com.graduation.project.inventory.repository.SupplierRepository;
 import com.graduation.project.inventory.service.StockService;
 import com.graduation.project.product.entity.Product;
 import com.graduation.project.product.repository.ProductRepository;
+import com.graduation.project.staff.repository.StaffRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -47,6 +48,7 @@ public class StockServiceImpl implements StockService {
   private final MedicineRepository medicineRepository;
   private final ProductRepository productRepository;
   private final SupplierRepository supplierRepository;
+  private final StaffRepository staffRepository;
   private final InventoryMapper inventoryMapper;
 
   // ============================================================
@@ -78,7 +80,7 @@ public class StockServiceImpl implements StockService {
 
   @Override
   @Transactional
-  public StockVoucherResp approveVoucher(UUID voucherId) {
+  public StockVoucherResp approveVoucher(UUID voucherId, UUID approvedBy) {
     StockVoucher voucher = findVoucherOrThrow(voucherId);
 
     if (voucher.getStatus() != VoucherStatus.DRAFT) {
@@ -100,7 +102,15 @@ public class StockServiceImpl implements StockService {
 
     voucher.setStatus(VoucherStatus.APPROVED);
     voucher.setApprovedAt(OffsetDateTime.now());
+    // FK approved_by → staff.id (not user.id)
+    staffRepository
+        .findByUserIdAndActiveTrue(approvedBy)
+        .ifPresentOrElse(
+            staff -> voucher.setApprovedBy(staff.getId()), () -> voucher.setApprovedBy(null));
     voucherRepository.save(voucher);
+
+    // Sync product total stock
+    syncProductStockQuantities(items);
 
     voucher.setItems(items);
     log.info("Duyệt phiếu kho {} thành công", voucherId);
@@ -229,7 +239,11 @@ public class StockServiceImpl implements StockService {
               .quantity(item.getQuantity())
               .remainingQty(item.getQuantity())
               .importPrice(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO)
-              .batchCode(item.getNote()) // tạm dùng note chứa batchCode
+              .batchCode(
+                  item.getBatchCode() != null
+                      ? item.getBatchCode()
+                      : ("BATCH-" + System.currentTimeMillis()))
+              .expiryDate(item.getExpiryDate())
               .receivedAt(OffsetDateTime.now())
               .build();
       batch = batchRepository.save(batch);
@@ -298,6 +312,20 @@ public class StockServiceImpl implements StockService {
   // HELPERS
   // ============================================================
 
+  /** Cập nhật tổng tồn kho cho tất cả các product có trong danh sách item */
+  private void syncProductStockQuantities(List<StockVoucherItem> items) {
+    items.stream()
+        .filter(item -> item.getProduct() != null)
+        .map(item -> item.getProduct())
+        .distinct()
+        .forEach(
+            product -> {
+              BigDecimal totalStock = batchRepository.sumRemainingQtyByProductId(product.getId());
+              product.setStockQuantity(totalStock.intValue());
+              productRepository.save(product);
+            });
+  }
+
   private StockVoucherItem buildVoucherItem(StockVoucher voucher, VoucherItemRequest req) {
     Medicine medicine = null;
     Product product = null;
@@ -336,6 +364,11 @@ public class StockServiceImpl implements StockService {
         .batch(batch)
         .quantity(req.quantity())
         .unitPrice(req.unitPrice())
+        .batchCode(req.batchCode())
+        .expiryDate(
+            req.expiryDate() != null && !req.expiryDate().isEmpty()
+                ? java.time.LocalDate.parse(req.expiryDate())
+                : null)
         .note(req.note())
         .build();
   }
