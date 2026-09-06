@@ -1,3 +1,5 @@
+
+
 -- ===== Products =====
 CREATE TABLE products (
     id              UUID PRIMARY KEY,                            -- Java UUIDv7
