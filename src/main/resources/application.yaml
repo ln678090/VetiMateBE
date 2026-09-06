@@ -38,3 +38,4 @@ app:
   cors:
     allowed-origins: "${CORS_ALLOWED_ORIGINS}"
 cloudinary:
+  url: ${CLOUDINARY_URL:cloudinary://demo:demo@demo}
