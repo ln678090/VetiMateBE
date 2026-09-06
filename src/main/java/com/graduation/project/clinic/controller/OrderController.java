@@ -60,7 +60,8 @@ public class OrderController {
   public ResponseEntity<OrderResponse> updateOrderStatus(
       @PathVariable UUID id,
       @Valid @RequestBody com.graduation.project.clinic.dto.req.UpdateOrderStatusReq request) {
-    return ResponseEntity.ok(orderService.updateOrderStatus(id, request.getStatus()));
+    return ResponseEntity.ok(
+        orderService.updateOrderStatus(id, request.getStatus(), request.getCancelReason()));
   }
 
   @GetMapping("/pos-history")

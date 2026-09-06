@@ -45,6 +45,18 @@ public class StockController {
         .build();
   }
 
+  @GetMapping("/products-stock")
+  public ApiResp<Page<com.graduation.project.inventory.dto.resp.WarehouseStockResp>>
+      getWarehouseProductsStock(
+          @RequestParam(required = false, defaultValue = "0") int page,
+          @RequestParam(required = false, defaultValue = "1000") int size) {
+    return ApiResp.<Page<com.graduation.project.inventory.dto.resp.WarehouseStockResp>>builder()
+        .message("Lấy tồn kho bảo quản thành công")
+        .data(stockService.getWarehouseStock(page, size))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
   // ===== Vouchers =====
 
   @GetMapping("/vouchers")

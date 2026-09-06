@@ -10,9 +10,14 @@ import org.springframework.stereotype.Repository;
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
   List<Notification> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+
   List<Notification> findAllByUserIdIsNullOrderByCreatedAtDesc();
+
   List<Notification> findAllByUserIdAndIsReadFalse(UUID userId);
+
   List<Notification> findAllByUserIdIsNullAndIsReadFalse();
+
   long countByUserIdAndIsReadFalse(UUID userId);
+
   long countByUserIdIsNullAndIsReadFalse();
 }

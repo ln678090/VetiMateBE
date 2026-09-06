@@ -30,6 +30,7 @@ public class NotificationServiceImpl implements NotificationService {
             .link(link)
             .channel("IN_APP")
             .status("SENT")
+            .sentAt(java.time.Instant.now())
             .isRead(false)
             .build();
 
@@ -51,9 +52,9 @@ public class NotificationServiceImpl implements NotificationService {
   public List<NotificationDto> getUserNotifications(UUID userId) {
     List<Notification> notifications;
     if (userId == null) {
-        notifications = notificationRepository.findAllByUserIdIsNullOrderByCreatedAtDesc();
+      notifications = notificationRepository.findAllByUserIdIsNullOrderByCreatedAtDesc();
     } else {
-        notifications = notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+      notifications = notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
     }
     return notifications.stream().map(this::mapToDto).collect(Collectors.toList());
   }
@@ -65,8 +66,9 @@ public class NotificationServiceImpl implements NotificationService {
         notificationRepository
             .findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
-            
-    // To support staff notifications where userId is null, we can bypass the check if the request is from staff or if notification has no userId.
+
+    // To support staff notifications where userId is null, we can bypass the check if the request
+    // is from staff or if notification has no userId.
     // For simplicity, we just mark it as read.
     notification.setIsRead(true);
     notificationRepository.save(notification);
@@ -77,9 +79,9 @@ public class NotificationServiceImpl implements NotificationService {
   public void markAllAsRead(UUID userId) {
     List<Notification> notifications;
     if (userId == null) {
-        notifications = notificationRepository.findAllByUserIdIsNullAndIsReadFalse();
+      notifications = notificationRepository.findAllByUserIdIsNullAndIsReadFalse();
     } else {
-        notifications = notificationRepository.findAllByUserIdAndIsReadFalse(userId);
+      notifications = notificationRepository.findAllByUserIdAndIsReadFalse(userId);
     }
     for (Notification n : notifications) {
       n.setIsRead(true);
@@ -91,7 +93,7 @@ public class NotificationServiceImpl implements NotificationService {
   @Transactional(readOnly = true)
   public long getUnreadCount(UUID userId) {
     if (userId == null) {
-        return notificationRepository.countByUserIdIsNullAndIsReadFalse();
+      return notificationRepository.countByUserIdIsNullAndIsReadFalse();
     }
     return notificationRepository.countByUserIdAndIsReadFalse(userId);
   }

@@ -143,6 +143,7 @@ public class OrderServiceImpl implements OrderService {
       uv.setIsUsed(true);
       uv.setUsedAt(java.time.LocalDateTime.now());
       userVoucherRepository.save(uv);
+      invoice.setUserVoucher(uv);
     }
 
     invoice.setDiscountAmount(discount);
@@ -150,12 +151,17 @@ public class OrderServiceImpl implements OrderService {
 
     invoice = invoiceRepository.save(invoice);
 
-    // Push WebSocket notification to shop staff via NotificationService (null userId means system broadcast to staff)
+    // Push WebSocket notification to shop staff via NotificationService (null userId means system
+    // broadcast to staff)
     notificationService.createNotification(
         null,
         "Đơn hàng mới",
-        "Có đơn hàng mới: " + invoice.getInvoiceCode() + " với tổng tiền " + invoice.getTotalAmount().toString() + "đ",
-        "/staff/shop/orders/" + invoice.getId());
+        "Có đơn hàng mới: "
+            + invoice.getInvoiceCode()
+            + " với tổng tiền "
+            + invoice.getTotalAmount().toString()
+            + "đ",
+        "/staff/shop/orders");
 
     return mapToResponse(invoice);
   }
@@ -273,9 +279,18 @@ public class OrderServiceImpl implements OrderService {
         .collect(Collectors.toList());
   }
 
+  private void refundVoucherIfAny(Invoice invoice) {
+    if (invoice.getUserVoucher() != null) {
+      com.graduation.project.loyalty.entity.UserVoucher uv = invoice.getUserVoucher();
+      uv.setIsUsed(false);
+      uv.setUsedAt(null);
+      userVoucherRepository.save(uv);
+    }
+  }
+
   @Override
   @Transactional
-  public OrderResponse updateOrderStatus(UUID id, String newStatus) {
+  public OrderResponse updateOrderStatus(UUID id, String newStatus, String cancelReason) {
     Invoice invoice =
         invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -284,15 +299,31 @@ public class OrderServiceImpl implements OrderService {
     }
 
     invoice.setStatus(newStatus);
+
+    if ("CANCELLED".equals(newStatus) && cancelReason != null && !cancelReason.trim().isEmpty()) {
+      String note = invoice.getNote() != null ? invoice.getNote() : "";
+      note = note + " | [SHOP_CANCELLED]: " + cancelReason.trim();
+      if (note.length() > 500) {
+        note = note.substring(0, 497) + "...";
+      }
+      invoice.setNote(note);
+    }
+
+    if ("CANCELLED".equals(newStatus)) {
+      refundVoucherIfAny(invoice);
+    }
+
     invoice = invoiceRepository.save(invoice);
 
     if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
       notificationService.createNotification(
           invoice.getCustomer().getUserId(),
           "Cập nhật đơn hàng",
-          "Đơn hàng " + invoice.getInvoiceCode() + " của bạn đã chuyển sang trạng thái: " + newStatus,
-          "/profile/orders"
-      );
+          "Đơn hàng "
+              + invoice.getInvoiceCode()
+              + " của bạn đã chuyển sang trạng thái: "
+              + newStatus,
+          "/profile/orders");
     }
 
     if ("DELIVERED".equals(newStatus)
@@ -311,10 +342,15 @@ public class OrderServiceImpl implements OrderService {
             case "CANCELLED" -> "đã bị hủy";
             default -> "được cập nhật trạng thái";
           };
+      String notificationMessage = "Đơn hàng của bạn " + statusStr + ".";
+      if ("CANCELLED".equals(newStatus) && cancelReason != null && !cancelReason.trim().isEmpty()) {
+        notificationMessage += " Lý do: " + cancelReason.trim();
+      }
+
       notificationService.createNotification(
           invoice.getCustomer().getUserId(),
           "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
-          "Đơn hàng của bạn " + statusStr + ".",
+          notificationMessage,
           "/profile/orders?orderId=" + invoice.getId());
     }
 
@@ -356,6 +392,7 @@ public class OrderServiceImpl implements OrderService {
 
     if (req.getAccept()) {
       invoice.setStatus("CANCELLED");
+      refundVoucherIfAny(invoice);
     } else {
       // Reject cancellation, remove the tag from note
       String note = invoice.getNote();
@@ -467,6 +504,10 @@ public class OrderServiceImpl implements OrderService {
                             item.getProduct() != null ? item.getProduct().getImageUrl() : null)
                         .price(item.getUnitPrice())
                         .quantity(item.getQuantity().intValue())
+                        .stockQuantity(
+                            item.getProduct() != null ? item.getProduct().getStockQuantity() : 0)
+                        .isActive(
+                            item.getProduct() != null ? item.getProduct().getIsActive() : false)
                         .build())
             .collect(Collectors.toList());
 
