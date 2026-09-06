@@ -2,9 +2,9 @@ name: CI - Validate DB Schema with Flyway
 
 on:
   push:
-    branches: [main, develop, master]
+    branches: [main, develop, master, Dung]
   pull_request:
-    branches: [main, develop, master]
+    branches: [main, develop, master, Dung]
 
 jobs:
   validate-flyway-entity:
