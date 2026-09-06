@@ -33,11 +33,28 @@ public interface StockService {
   /** Lô hàng theo product (FEFO) */
   List<StockBatchResp> getBatchesByProduct(UUID productId);
 
-  /** Cảnh báo: lô cận date (30 ngày) */
-  List<StockBatchResp> getNearExpiryBatches();
+  /** Cảnh báo: lô cận date (30 ngày) theo kho */
+  List<StockBatchResp> getNearExpiryBatches(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
 
-  /** Cảnh báo: lô đã hết hạn */
-  List<StockBatchResp> getExpiredBatches();
+  default List<StockBatchResp> getNearExpiryBatches() {
+    return getNearExpiryBatches(com.graduation.project.inventory.entity.WarehouseLocation.STORAGE);
+  }
+
+  /** Cảnh báo: lô đã hết hạn theo kho */
+  List<StockBatchResp> getExpiredBatches(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
+
+  default List<StockBatchResp> getExpiredBatches() {
+    return getExpiredBatches(com.graduation.project.inventory.entity.WarehouseLocation.STORAGE);
+  }
+
+  /** Danh sách lô hàng theo kho */
+  List<StockBatchResp> getBatchesByWarehouse(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
+
+  /** Xuất nhanh 1 lô hết hạn từ Kho bảo quản lên Kho bác sĩ */
+  StockVoucherResp exportExpiredBatchToDoctor(UUID batchId, UUID currentUserId);
+
+  /** Xuất nhanh toàn bộ các lô hết hạn từ Kho bảo quản lên Kho bác sĩ */
+  StockVoucherResp exportAllExpiredBatchesToDoctor(UUID currentUserId);
 
   /** Dashboard tổng quan kho */
   InventoryDashboardResp getDashboard();
