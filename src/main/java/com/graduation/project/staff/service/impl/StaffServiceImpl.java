@@ -1,5 +1,8 @@
 package com.graduation.project.staff.service.impl;
 
+import com.graduation.project.audit.dto.AuditLogEvent;
+import com.graduation.project.audit.entity.AuditAction;
+import com.graduation.project.audit.service.AuditLogWriter;
 import com.graduation.project.auth.service.RoleAssignmentService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.staff.dto.EligibleUserResponse;
@@ -27,9 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class StaffServiceImpl implements StaffService {
 
+  private static final String AUDIT_MODULE = "STAFF";
+  private static final String AUDIT_TABLE = "staff";
+
   private final StaffRepository staffRepository;
   private final UserRepository userRepository;
   private final RoleAssignmentService roleAssignmentService;
+  private final AuditLogWriter auditLogWriter;
 
   @Override
   @Transactional
@@ -43,11 +50,10 @@ public class StaffServiceImpl implements StaffService {
 
     /*
      * User là nguồn dữ liệu identity duy nhất.
-     * Staff chỉ lưu snapshot để tương thích schema V10.
+     * Staff chỉ giữ snapshot tương thích schema V10.
      */
     staff.setFullName(user.getFullName());
     staff.setPhone(user.getPhone());
-
     staff.setRoleType(request.roleType());
     staff.setLicenseNumber(null);
     staff.setBaseSalary(BigDecimal.ZERO);
@@ -55,16 +61,27 @@ public class StaffServiceImpl implements StaffService {
     staff.setActive(true);
 
     /*
-     * Flush trước khi gọi RoleAssignmentService để các kiểm tra
-     * Staff/User trong service phân quyền nhìn thấy Staff vừa tạo.
-     *
-     * Nếu phân quyền hoặc audit thất bại, toàn bộ transaction
-     * vẫn rollback, bao gồm bản ghi Staff vừa insert.
+     * Flush để RoleAssignmentService nhìn thấy Staff vừa tạo.
+     * Nếu phân quyền hoặc audit thất bại, transaction rollback.
      */
     Staff savedStaff = staffRepository.saveAndFlush(staff);
 
     roleAssignmentService.assignStaffRole(
         user.getId(), savedStaff.getRoleType(), actorUserId, request.reason());
+
+    auditLogWriter.record(
+        new AuditLogEvent(
+            AUDIT_MODULE,
+            AUDIT_TABLE,
+            savedStaff.getId(),
+            AuditAction.INSERT,
+            null,
+            toAuditSnapshot(savedStaff),
+            actorUserId,
+            resolveActorIdentifier(actorUserId),
+            "createEmployee",
+            null,
+            null));
 
     return toResponse(savedStaff);
   }
@@ -76,8 +93,8 @@ public class StaffServiceImpl implements StaffService {
     User linkedUser = requireLinkedUser(staff);
 
     /*
-     * Deactivate phải đi qua command riêng để chắc chắn workforce
-     * role cũng được thu hồi trong cùng transaction.
+     * Deactivate phải dùng command riêng để workforce role
+     * được thu hồi trong cùng transaction.
      */
     if (!request.active()) {
       throw new StaffConflictException("Hãy dùng chức năng ngừng hoạt động nhân viên");
@@ -91,27 +108,37 @@ public class StaffServiceImpl implements StaffService {
       return toResponse(staff);
     }
 
-    /*
-     * Cập nhật Staff trước để RoleAssignmentService có thể xác minh:
-     *
-     * active Staff.roleType phải khớp với workforce role được cấp.
-     */
+    StaffAuditSnapshot oldData = toAuditSnapshot(staff);
+
     staff.setRoleType(request.roleType());
     staff.setActive(true);
 
     Staff savedStaff = staffRepository.saveAndFlush(staff);
 
     /*
-     * Service phân quyền phải:
-     * - từ chối tài khoản ROLE_ADMIN;
-     * - xóa ROLE_USER và workforce role cũ;
-     * - cấp đúng workforce role mới;
-     * - không nhận role tùy ý từ client;
-     * - ghi audit;
-     * - thu hồi refresh session.
+     * RoleAssignmentService chịu trách nhiệm:
+     * - từ chối ROLE_ADMIN;
+     * - thu hồi workforce role cũ;
+     * - cấp workforce role mới;
+     * - thu hồi refresh session;
+     * - ghi ROLE_CHANGE nếu đã triển khai.
      */
     roleAssignmentService.assignStaffRole(
         linkedUser.getId(), savedStaff.getRoleType(), actorUserId, request.reason());
+
+    auditLogWriter.record(
+        new AuditLogEvent(
+            AUDIT_MODULE,
+            AUDIT_TABLE,
+            savedStaff.getId(),
+            AuditAction.UPDATE,
+            oldData,
+            toAuditSnapshot(savedStaff),
+            actorUserId,
+            resolveActorIdentifier(actorUserId),
+            roleChanged ? "Update employee role" : "Reactivate employee",
+            null,
+            null));
 
     return toResponse(savedStaff);
   }
@@ -146,19 +173,31 @@ public class StaffServiceImpl implements StaffService {
       return toResponse(staff);
     }
 
-    /*
-     * Đổi trạng thái Staff trước để không tồn tại active Staff
-     * sau khi workforce role đã bị thu hồi.
-     */
+    StaffAuditSnapshot oldData = toAuditSnapshot(staff);
+
     staff.setActive(false);
 
     Staff savedStaff = staffRepository.saveAndFlush(staff);
 
     /*
      * Chỉ thu hồi workforce roles.
-     * Không xóa User, không cấp ROLE_USER ngầm và không đụng ROLE_ADMIN.
+     * Không xóa User và không đụng ROLE_ADMIN.
      */
     roleAssignmentService.revokeStaffRoles(linkedUser.getId(), actorUserId, reason);
+
+    auditLogWriter.record(
+        new AuditLogEvent(
+            AUDIT_MODULE,
+            AUDIT_TABLE,
+            savedStaff.getId(),
+            AuditAction.DELETE,
+            oldData,
+            toAuditSnapshot(savedStaff),
+            actorUserId,
+            resolveActorIdentifier(actorUserId),
+            "Deactivate employee: " + normalizeReason(reason),
+            null,
+            null));
 
     return toResponse(savedStaff);
   }
@@ -171,7 +210,7 @@ public class StaffServiceImpl implements StaffService {
      * Repository phải loại:
      * - User đã liên kết với Staff;
      * - User có ROLE_ADMIN;
-     * - User bị disabled nếu chính sách onboarding yêu cầu.
+     * - User bị vô hiệu hóa nếu chính sách yêu cầu.
      */
     return userRepository
         .findEligibleForStaff(normalizedKeyword, pageable)
@@ -224,6 +263,37 @@ public class StaffServiceImpl implements StaffService {
     return keyword.trim().toLowerCase(Locale.ROOT);
   }
 
+  private String normalizeReason(String reason) {
+    if (reason == null || reason.isBlank()) {
+      return "Không cung cấp lý do";
+    }
+
+    return reason.trim();
+  }
+
+  private String resolveActorIdentifier(UUID actorUserId) {
+    if (actorUserId == null) {
+      return "SYSTEM";
+    }
+
+    return userRepository
+        .findById(actorUserId)
+        .map(this::getUserIdentifier)
+        .orElse(actorUserId.toString());
+  }
+
+  private String getUserIdentifier(User user) {
+    if (user.getEmail() != null && !user.getEmail().isBlank()) {
+      return user.getEmail();
+    }
+
+    if (user.getUsername() != null && !user.getUsername().isBlank()) {
+      return user.getUsername();
+    }
+
+    return user.getId().toString();
+  }
+
   private StaffResponse toResponse(Staff staff) {
     UUID userId = staff.getUser() == null ? null : staff.getUser().getId();
 
@@ -244,4 +314,30 @@ public class StaffServiceImpl implements StaffService {
     return new EligibleUserResponse(
         user.getId(), user.getUsername(), user.getFullName(), user.getEmail(), user.getPhone());
   }
+
+  private StaffAuditSnapshot toAuditSnapshot(Staff staff) {
+    UUID userId = staff.getUser() == null ? null : staff.getUser().getId();
+
+    return new StaffAuditSnapshot(
+        staff.getId(),
+        userId,
+        staff.getFullName(),
+        staff.getPhone(),
+        staff.getRoleType(),
+        staff.getLicenseNumber(),
+        staff.getBaseSalary(),
+        staff.getCommissionRate(),
+        staff.isActive());
+  }
+
+  private record StaffAuditSnapshot(
+      UUID id,
+      UUID userId,
+      String fullName,
+      String phone,
+      StaffRoleType roleType,
+      String licenseNumber,
+      BigDecimal baseSalary,
+      BigDecimal commissionRate,
+      boolean active) {}
 }

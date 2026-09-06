@@ -1,5 +1,8 @@
-package com.graduation.project.auth.service.Impl;
+package com.graduation.project.auth.service.impl;
 
+import com.graduation.project.audit.dto.AuditLogEvent;
+import com.graduation.project.audit.entity.AuditAction;
+import com.graduation.project.audit.service.AuditLogWriter;
 import com.graduation.project.auth.config.custom.CustomUserDetails;
 import com.graduation.project.auth.config.jwt.TokenService;
 import com.graduation.project.auth.dto.privateDto.TokenPair;
@@ -32,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
   private final UserRepository userRepository;
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
+  private final AuditLogWriter auditLogWriter;
 
   // @Value("${app.google.client-id}")
   // private String googleClientId;
@@ -139,6 +143,19 @@ public class AuthServiceImpl implements AuthService {
 
     String refreshToken = tokenService.generateRefreshToken(userDetails.id());
 
+    auditLogWriter.record(
+        new AuditLogEvent(
+            "AUTH",
+            "users",
+            userDetails.id(),
+            AuditAction.LOGIN,
+            null,
+            null,
+            userDetails.id(),
+            userDetails.email(),
+            "Login Success",
+            null,
+            null));
     return new TokenPair(accessToken, refreshToken);
   }
 

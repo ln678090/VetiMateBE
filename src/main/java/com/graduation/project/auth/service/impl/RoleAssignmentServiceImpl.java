@@ -1,4 +1,4 @@
-package com.graduation.project.auth.service.Impl;
+package com.graduation.project.auth.service.impl;
 
 import com.graduation.project.auth.entity.Role;
 import com.graduation.project.auth.repository.RoleRepository;
