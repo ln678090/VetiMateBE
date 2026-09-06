@@ -150,14 +150,12 @@ public class OrderServiceImpl implements OrderService {
 
     invoice = invoiceRepository.save(invoice);
 
-    // Push WebSocket notification to shop staff
-    messagingTemplate.convertAndSend(
-        "/topic/shop-orders",
-        java.util.Map.of(
-            "type", "NEW_ORDER",
-            "orderId", invoice.getId().toString(),
-            "orderCode", invoice.getInvoiceCode(),
-            "totalAmount", invoice.getTotalAmount().toString()));
+    // Push WebSocket notification to shop staff via NotificationService (null userId means system broadcast to staff)
+    notificationService.createNotification(
+        null,
+        "Đơn hàng mới",
+        "Có đơn hàng mới: " + invoice.getInvoiceCode() + " với tổng tiền " + invoice.getTotalAmount().toString() + "đ",
+        "/staff/shop/orders/" + invoice.getId());
 
     return mapToResponse(invoice);
   }
@@ -287,6 +285,15 @@ public class OrderServiceImpl implements OrderService {
 
     invoice.setStatus(newStatus);
     invoice = invoiceRepository.save(invoice);
+
+    if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
+      notificationService.createNotification(
+          invoice.getCustomer().getUserId(),
+          "Cập nhật đơn hàng",
+          "Đơn hàng " + invoice.getInvoiceCode() + " của bạn đã chuyển sang trạng thái: " + newStatus,
+          "/profile/orders"
+      );
+    }
 
     if ("DELIVERED".equals(newStatus)
         && invoice.getCustomer() != null
