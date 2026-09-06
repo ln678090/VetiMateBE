@@ -1,7 +1,8 @@
 package com.graduation.project.common.exception;
 
 import com.graduation.project.common.resp.ApiResp;
-import java.nio.file.AccessDeniedException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -150,8 +151,8 @@ public class GlobalExceptionHandler {
   // }
 
   // Xử lý khi user cố tình xóa bài/bình luận của người khác
-  @ExceptionHandler(AccessDeniedException.class)
-  public ResponseEntity<ApiResp<Void>> handleAccessDeniedException(AccessDeniedException ex) {
+  @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+  public ResponseEntity<ApiResp<Void>> handleAccessDeniedException(RuntimeException ex) {
     ApiResp<Void> apiResp =
         ApiResp.<Void>builder()
             .message(ex.getMessage())
