@@ -34,21 +34,24 @@ public interface StockService {
   List<StockBatchResp> getBatchesByProduct(UUID productId);
 
   /** Cảnh báo: lô cận date (30 ngày) theo kho */
-  List<StockBatchResp> getNearExpiryBatches(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
+  List<StockBatchResp> getNearExpiryBatches(
+      com.graduation.project.inventory.entity.WarehouseLocation warehouse);
 
   default List<StockBatchResp> getNearExpiryBatches() {
     return getNearExpiryBatches(com.graduation.project.inventory.entity.WarehouseLocation.STORAGE);
   }
 
   /** Cảnh báo: lô đã hết hạn theo kho */
-  List<StockBatchResp> getExpiredBatches(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
+  List<StockBatchResp> getExpiredBatches(
+      com.graduation.project.inventory.entity.WarehouseLocation warehouse);
 
   default List<StockBatchResp> getExpiredBatches() {
     return getExpiredBatches(com.graduation.project.inventory.entity.WarehouseLocation.STORAGE);
   }
 
   /** Danh sách lô hàng theo kho */
-  List<StockBatchResp> getBatchesByWarehouse(com.graduation.project.inventory.entity.WarehouseLocation warehouse);
+  List<StockBatchResp> getBatchesByWarehouse(
+      com.graduation.project.inventory.entity.WarehouseLocation warehouse);
 
   /** Xuất nhanh 1 lô hết hạn từ Kho bảo quản lên Kho bác sĩ */
   StockVoucherResp exportExpiredBatchToDoctor(UUID batchId, UUID currentUserId);

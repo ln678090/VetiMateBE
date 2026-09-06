@@ -371,7 +371,10 @@ public class StockServiceImpl implements StockService {
     }
   }
 
-  /** Xuất kho / Chuyển kho: trừ tồn từ sourceWarehouse, nếu có destinationWarehouse thì chuyển sang kho đích */
+  /**
+   * Xuất kho / Chuyển kho: trừ tồn từ sourceWarehouse, nếu có destinationWarehouse thì chuyển sang
+   * kho đích
+   */
   private void processExportOrTransfer(StockVoucher voucher, List<StockVoucherItem> items) {
     WarehouseLocation sourceWh =
         voucher.getSourceWarehouse() != null
@@ -428,7 +431,12 @@ public class StockServiceImpl implements StockService {
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
           String itemName = item.getItemName();
           throw new IllegalArgumentException(
-              "Không đủ tồn kho cho " + itemName + " tại kho " + sourceWh + ". Thiếu: " + remaining);
+              "Không đủ tồn kho cho "
+                  + itemName
+                  + " tại kho "
+                  + sourceWh
+                  + ". Thiếu: "
+                  + remaining);
         }
       }
     }

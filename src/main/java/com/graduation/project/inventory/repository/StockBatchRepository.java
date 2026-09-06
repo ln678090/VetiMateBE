@@ -112,4 +112,3 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, UUID> {
   Optional<StockBatch> findByProductIdAndBatchCodeAndWarehouse(
       UUID productId, String batchCode, WarehouseLocation warehouse);
 }
-
