@@ -6,32 +6,32 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.graduation.project.audit.dto.AuditLogEvent;
 import com.graduation.project.audit.entity.AuditLog;
 import com.graduation.project.audit.repository.AuditLogRepository;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Iterator;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 public class AuditLogWriterImpl implements AuditLogWriter {
 
-  private static final Set<String> SENSITIVE_FIELDS = Set.of(
-      "password",
-      "passwordhash",
-      "accesstoken",
-      "refreshtoken",
-      "token",
-      "otp",
-      "otphash",
-      "mfasecret",
-      "authorization",
-      "cookie",
-      "secret");
+  private static final Set<String> SENSITIVE_FIELDS =
+      Set.of(
+          "password",
+          "passwordhash",
+          "accesstoken",
+          "refreshtoken",
+          "token",
+          "otp",
+          "otphash",
+          "mfasecret",
+          "authorization",
+          "cookie",
+          "secret");
 
   private final AuditLogRepository auditLogRepository;
   private final ObjectMapper objectMapper;
@@ -39,18 +39,19 @@ public class AuditLogWriterImpl implements AuditLogWriter {
   @Override
   @Transactional(propagation = Propagation.REQUIRED)
   public void record(AuditLogEvent event) {
-    AuditLog auditLog = AuditLog.create(
-        normalizeModule(event.module()),
-        requireText(event.tableName(), "tableName"),
-        event.recordId(),
-        event.action(),
-        sanitize(event.oldData()),
-        sanitize(event.newData()),
-        event.actorId(),
-        truncate(event.actorIdentifier(), 255),
-        truncate(event.description(), 500),
-        truncate(event.ipAddress(), 45),
-        truncate(event.userAgent(), 500));
+    AuditLog auditLog =
+        AuditLog.create(
+            normalizeModule(event.module()),
+            requireText(event.tableName(), "tableName"),
+            event.recordId(),
+            event.action(),
+            sanitize(event.oldData()),
+            sanitize(event.newData()),
+            event.actorId(),
+            truncate(event.actorIdentifier(), 255),
+            truncate(event.description(), 500),
+            truncate(event.ipAddress(), 45),
+            truncate(event.userAgent(), 500));
 
     auditLogRepository.save(auditLog);
   }
@@ -94,23 +95,18 @@ public class AuditLogWriterImpl implements AuditLogWriter {
   }
 
   private boolean isSensitive(String fieldName) {
-    String normalized = fieldName
-        .replace("_", "")
-        .replace("-", "")
-        .toLowerCase(Locale.ROOT);
+    String normalized = fieldName.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
 
     return SENSITIVE_FIELDS.contains(normalized);
   }
 
   private String normalizeModule(String module) {
-    return requireText(module, "module")
-        .toUpperCase(Locale.ROOT);
+    return requireText(module, "module").toUpperCase(Locale.ROOT);
   }
 
   private String requireText(String value, String fieldName) {
     if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(
-          fieldName + " không được để trống");
+      throw new IllegalArgumentException(fieldName + " không được để trống");
     }
 
     return value.trim();
@@ -123,8 +119,6 @@ public class AuditLogWriterImpl implements AuditLogWriter {
 
     String trimmed = value.trim();
 
-    return trimmed.length() <= maximumLength
-        ? trimmed
-        : trimmed.substring(0, maximumLength);
+    return trimmed.length() <= maximumLength ? trimmed : trimmed.substring(0, maximumLength);
   }
 }

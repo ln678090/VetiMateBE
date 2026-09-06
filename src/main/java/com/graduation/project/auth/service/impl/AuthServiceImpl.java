@@ -36,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final AuditLogWriter auditLogWriter;
+
   // @Value("${app.google.client-id}")
   // private String googleClientId;
 
@@ -131,12 +132,14 @@ public class AuthServiceImpl implements AuthService {
   // }
   @Override
   public TokenPair login(LoginRequest request) {
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+    Authentication authentication =
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 
     CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-    String accessToken = tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
+    String accessToken =
+        tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
 
     String refreshToken = tokenService.generateRefreshToken(userDetails.id());
 
@@ -165,29 +168,32 @@ public class AuthServiceImpl implements AuthService {
     if (userRepository.existsByPhone(request.phone())) {
       throw new IllegalArgumentException("Phone already exists ");
     }
-    Role userRole = roleRepository
-        .findByName("ROLE_USER")
-        .orElseThrow(() -> new RuntimeException("Role mặc định không tồn tại "));
+    Role userRole =
+        roleRepository
+            .findByName("ROLE_USER")
+            .orElseThrow(() -> new RuntimeException("Role mặc định không tồn tại "));
 
     // Role userRole1 = roleRepository.findByName("ROLE_USER")
     // .orElseThrow(() -> new RuntimeException("Role mặc định không tồn tại "));
 
-    User newUser = User.builder()
-        .email(request.email())
-        .password(passwordEncoder.encode(request.password()))
-        .fullName(request.fullName())
-        .username(request.username())
-        .phone(request.phone())
-        .enabled(Boolean.TRUE)
-        .createdAt(OffsetDateTime.now())
-        .updatedAt(OffsetDateTime.now())
-        .roles(List.of(userRole))
-        .build();
+    User newUser =
+        User.builder()
+            .email(request.email())
+            .password(passwordEncoder.encode(request.password()))
+            .fullName(request.fullName())
+            .username(request.username())
+            .phone(request.phone())
+            .enabled(Boolean.TRUE)
+            .createdAt(OffsetDateTime.now())
+            .updatedAt(OffsetDateTime.now())
+            .roles(List.of(userRole))
+            .build();
     newUser = userRepository.save(newUser);
 
     CustomUserDetails userDetails = CustomUserDetails.fromUser(newUser);
 
-    String accessToken = tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
+    String accessToken =
+        tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
 
     String refreshToken = tokenService.generateRefreshToken(userDetails.id());
 
@@ -199,10 +205,12 @@ public class AuthServiceImpl implements AuthService {
   public TokenPair refreshToken(String oldRefreshToken) {
     UUID userId = tokenService.getUserIdFromRefreshToken(oldRefreshToken);
 
-    User user = userRepository
-        .findById(userId)
-        .orElseThrow(
-            () -> new BadCredentialsException("Người dùng của Refresh Token không còn tồn tại"));
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(
+                () ->
+                    new BadCredentialsException("Người dùng của Refresh Token không còn tồn tại"));
 
     CustomUserDetails userDetails = CustomUserDetails.fromUser(user);
 
@@ -210,24 +218,25 @@ public class AuthServiceImpl implements AuthService {
       throw new BadCredentialsException("Tài khoản đã bị vô hiệu hóa");
     }
 
-    String newAccessToken = tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
+    String newAccessToken =
+        tokenService.generateAccessToken(userDetails.id(), userDetails.getRolesAsString());
 
     return new TokenPair(newAccessToken, oldRefreshToken);
   }
 
   @Override
   public void logout(String refreshToken) {
-    if (refreshToken == null || refreshToken.isEmpty())
-      return;
+    if (refreshToken == null || refreshToken.isEmpty()) return;
     tokenService.deleteRefreshToken(refreshToken);
   }
 
   @Transactional
   @Override
   public void changePassword(UUID userId, ChangePasswordRequest request) {
-    User user = userRepository
-        .findById(userId)
-        .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
 
     if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
       throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");

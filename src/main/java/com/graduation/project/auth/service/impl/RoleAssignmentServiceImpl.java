@@ -21,13 +21,14 @@ public class RoleAssignmentServiceImpl implements RoleAssignmentService {
   private static final String ROLE_ADMIN = "ROLE_ADMIN";
   private static final String ROLE_USER = "ROLE_USER";
 
-  private static final Set<String> STAFF_ROLES = Set.of(
-      "ROLE_DOCTOR",
-      "ROLE_RECEPTIONIST",
-      "ROLE_MANAGER",
-      "ROLE_ACCOUNTANT",
-      "ROLE_WAREHOUSE",
-      "ROLE_SHOP_STAFF");
+  private static final Set<String> STAFF_ROLES =
+      Set.of(
+          "ROLE_DOCTOR",
+          "ROLE_RECEPTIONIST",
+          "ROLE_MANAGER",
+          "ROLE_ACCOUNTANT",
+          "ROLE_WAREHOUSE",
+          "ROLE_SHOP_STAFF");
 
   private final UserRepository userRepository;
   private final RoleRepository roleRepository;
@@ -43,11 +44,13 @@ public class RoleAssignmentServiceImpl implements RoleAssignmentService {
       throw new IllegalArgumentException("Lý do thu hồi quyền không được để trống");
     }
 
-    User user = userRepository
-        .findById(targetUserId)
-        .orElseThrow(
-            () -> new ResourceNotFoundException("Không tìm thấy tài khoản: " + targetUserId));
-    boolean adminAccount = user.getRoles().stream().anyMatch(role -> ROLE_ADMIN.equals(role.getName()));
+    User user =
+        userRepository
+            .findById(targetUserId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Không tìm thấy tài khoản: " + targetUserId));
+    boolean adminAccount =
+        user.getRoles().stream().anyMatch(role -> ROLE_ADMIN.equals(role.getName()));
     if (adminAccount) {
       throw new StaffConflictException("Không thể xử lý tài khoản Admin qua nghiệp vụ nhân sự");
     }
@@ -68,12 +71,14 @@ public class RoleAssignmentServiceImpl implements RoleAssignmentService {
       throw new IllegalArgumentException("Lý do thay đổi quyền không được để trống");
     }
 
-    User user = userRepository
-        .findById(targetUserId)
-        .orElseThrow(
-            () -> new ResourceNotFoundException("Không tìm thấy tài khoản: " + targetUserId));
+    User user =
+        userRepository
+            .findById(targetUserId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Không tìm thấy tài khoản: " + targetUserId));
 
-    boolean adminAccount = user.getRoles().stream().anyMatch(role -> ROLE_ADMIN.equals(role.getName()));
+    boolean adminAccount =
+        user.getRoles().stream().anyMatch(role -> ROLE_ADMIN.equals(role.getName()));
 
     if (adminAccount) {
       throw new StaffConflictException("Không thể thay đổi tài khoản Admin qua nghiệp vụ nhân sự");
@@ -81,10 +86,11 @@ public class RoleAssignmentServiceImpl implements RoleAssignmentService {
 
     String targetRoleName = mapRoleName(roleType);
 
-    Role targetRole = roleRepository
-        .findByName(targetRoleName)
-        .orElseThrow(
-            () -> new ResourceNotFoundException("Không tìm thấy quyền: " + targetRoleName));
+    Role targetRole =
+        roleRepository
+            .findByName(targetRoleName)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Không tìm thấy quyền: " + targetRoleName));
 
     user.getRoles()
         .removeIf(role -> ROLE_USER.equals(role.getName()) || STAFF_ROLES.contains(role.getName()));
