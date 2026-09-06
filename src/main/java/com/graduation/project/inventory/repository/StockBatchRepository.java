@@ -32,6 +32,14 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, UUID> {
       """)
   List<StockBatch> findAvailableBatchesByProductFefo(@Param("productId") UUID productId);
 
+  /** Tính tổng tồn kho hiện tại của 1 product */
+  @Query(
+      """
+      SELECT COALESCE(SUM(sb.remainingQty), 0) FROM StockBatch sb
+      WHERE sb.product.id = :productId
+      """)
+  java.math.BigDecimal sumRemainingQtyByProductId(@Param("productId") UUID productId);
+
   /** Tất cả lô cận date (sắp hết hạn trước ngày chỉ định) */
   @Query(
       """

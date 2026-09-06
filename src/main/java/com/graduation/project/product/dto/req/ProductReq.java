@@ -18,6 +18,8 @@ public class ProductReq {
   @NotBlank(message = "Tên sản phẩm không được để trống")
   private String name;
 
+  private String sku;
+
   private String description;
   private String shortDesc;
 

@@ -2,12 +2,14 @@ package com.graduation.project;
 
 import com.graduation.project.clinic.examination.service.ExaminationService;
 import java.util.UUID;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 
 @SpringBootTest
+@Disabled("Requires specific db data")
 public class HistoryTest {
 
   @Autowired private ExaminationService examinationService;

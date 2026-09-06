@@ -47,6 +47,14 @@ public class OrderController {
     return ResponseEntity.ok(orderService.getAllShopOrders());
   }
 
+  @GetMapping("/pending-count")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
+  public ResponseEntity<java.util.Map<String, Long>> getPendingCount() {
+    long count =
+        orderService.getAllShopOrders().stream().filter(o -> "DRAFT".equals(o.getStatus())).count();
+    return ResponseEntity.ok(java.util.Map.of("count", count));
+  }
+
   @PatchMapping("/{id}/status")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SHOP_STAFF')")
   public ResponseEntity<OrderResponse> updateOrderStatus(

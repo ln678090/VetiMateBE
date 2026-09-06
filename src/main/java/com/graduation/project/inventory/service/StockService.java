@@ -16,7 +16,7 @@ public interface StockService {
   StockVoucherResp createVoucher(CreateVoucherRequest request);
 
   /** Duyệt phiếu → cập nhật tồn kho */
-  StockVoucherResp approveVoucher(UUID voucherId);
+  StockVoucherResp approveVoucher(UUID voucherId, UUID approvedBy);
 
   /** Hủy phiếu */
   StockVoucherResp cancelVoucher(UUID voucherId);

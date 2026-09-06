@@ -246,6 +246,9 @@ JWT_REFRESH_EXPIRATION=2592000000
 # ===== RSA Keys (đường dẫn trong classpath) =====
 RSA_PUBLIC_KEY=classpath:keys/public.pem
 RSA_PRIVATE_KEY=classpath:keys/private.pem
+
+# ===== Cloudinary (Upload ảnh) =====
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
 ```
 
 > 🔒 **Bảo mật quan trọng:**
@@ -268,6 +271,7 @@ RSA_PRIVATE_KEY=classpath:keys/private.pem
 >   DB_URL=jdbc:postgresql://localhost:5432/veterinaryshop
 >   DB_USERNAME_POSTGRES=
 >   DB_PASSWORD=
+>   CLOUDINARY_URL=
 >   # ... (các key khác để rỗng)
 >   ```
 
@@ -358,7 +362,29 @@ src/main/resources/
 >
 > - **TUYỆT ĐỐI KHÔNG** commit `private.pem` lên Git public.
 > - Mỗi môi trường (dev/staging/prod) nên có cặp keys **riêng**.
-> - Production: lưu private key ở vault (AWS Secrets Manager / HashiCorp Vault), không nhúng vào source.
+> - Môi trường production: lưu private key ở vault (AWS Secrets Manager / HashiCorp Vault), không nhúng vào source.
+
+### 5. Cấu hình Cloudinary (Upload ảnh)
+
+Dự án sử dụng Cloudinary để lưu trữ ảnh. Để API upload ảnh hoạt động, bạn cần cấu hình biến môi trường `CLOUDINARY_URL`.
+
+#### Cách lấy `CLOUDINARY_URL`:
+1. Truy cập [cloudinary.com](https://cloudinary.com/) và đăng nhập (hoặc đăng ký tài khoản miễn phí).
+2. Vào trang **Dashboard** (hoặc **Programmable Media** > **Dashboard**).
+3. Tìm mục **Product Environment Credentials**.
+4. Bạn sẽ thấy biến **API Environment variable** có định dạng:
+   `CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>`
+5. Bấm nút copy (hoặc copy giá trị sau dấu bằng).
+
+#### Cấu hình vào dự án:
+Mở file `.env.properties` và thêm giá trị vừa copy vào:
+
+```properties
+# ===== Cloudinary (Upload ảnh) =====
+CLOUDINARY_URL=cloudinary://1234567890:abcdefghijklmn@mycloudname
+```
+
+> ⚠️ **Lưu ý:** Nếu không cấu hình Cloudinary, các tính năng liên quan đến upload ảnh (ví dụ: upload avatar, thêm ảnh sản phẩm) sẽ báo lỗi (nhưng ứng dụng vẫn khởi động thành công).
 
 ---
 

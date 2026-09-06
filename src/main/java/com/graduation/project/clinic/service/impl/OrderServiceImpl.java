@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class OrderServiceImpl implements OrderService {
       userVoucherRepository;
   private final com.graduation.project.clinic.repository.InvoiceReviewRepository
       invoiceReviewRepository;
+  private final SimpMessagingTemplate messagingTemplate;
 
   @Override
   @Transactional
@@ -147,6 +149,15 @@ public class OrderServiceImpl implements OrderService {
     invoice.setTotalAmount(total.subtract(discount).max(BigDecimal.ZERO));
 
     invoice = invoiceRepository.save(invoice);
+
+    // Push WebSocket notification to shop staff
+    messagingTemplate.convertAndSend(
+        "/topic/shop-orders",
+        java.util.Map.of(
+            "type", "NEW_ORDER",
+            "orderId", invoice.getId().toString(),
+            "orderCode", invoice.getInvoiceCode(),
+            "totalAmount", invoice.getTotalAmount().toString()));
 
     return mapToResponse(invoice);
   }

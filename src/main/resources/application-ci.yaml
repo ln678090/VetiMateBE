@@ -11,3 +11,5 @@ spring:
       port: 6379
       username: ""
       password: ""
+cloudinary:
+  url: "cloudinary://mock_api_key:mock_api_secret@mock_cloud_name"

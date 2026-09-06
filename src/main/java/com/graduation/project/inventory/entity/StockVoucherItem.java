@@ -53,6 +53,12 @@ public class StockVoucherItem {
   @Column(name = "unit_price", precision = 12, scale = 2)
   private BigDecimal unitPrice;
 
+  @Column(name = "batch_code", length = 100)
+  private String batchCode;
+
+  @Column(name = "expiry_date")
+  private java.time.LocalDate expiryDate;
+
   @Column(length = 255)
   private String note;
 
