@@ -24,6 +24,10 @@ public interface StockService {
   /** Lấy phiếu theo ID */
   StockVoucherResp getVoucherById(UUID id);
 
+  /** Lấy tổng quan tồn kho (kho bảo quản) */
+  Page<com.graduation.project.inventory.dto.resp.WarehouseStockResp> getWarehouseStock(
+      int page, int size);
+
   /** Danh sách phiếu kho — có filter type/status, phân trang */
   Page<StockVoucherResp> getVouchers(VoucherType type, VoucherStatus status, int page, int size);
 

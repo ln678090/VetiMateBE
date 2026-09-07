@@ -21,38 +21,33 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class NotificationServiceImpl implements NotificationService {
 
   private static final int MAX_RECENT_ITEMS = 100;
   private static final int MAX_TITLE_LENGTH = 255;
   private static final int MAX_LINK_LENGTH = 255;
-
   private static final Duration UNREAD_CACHE_TTL = Duration.ofMinutes(5);
-
   private static final String UNREAD_KEY_PREFIX = "vetimate:notification:unread:";
 
   private final NotificationRepository notificationRepository;
-
-  // private final StringRedisTemplate redisTemplate;
   private final RedisTemplate<String, String> redisTemplate;
 
   @Override
   @Transactional
   public void createNotification(UUID userId, String title, String message, String link) {
-    requireUserId(userId);
+    if (userId != null) {
+      requireUserId(userId);
+    }
 
     String safeTitle = truncate(normalizeRequired(title, "Tiêu đề thông báo"), MAX_TITLE_LENGTH);
-
     String safeMessage = normalizeRequired(message, "Nội dung thông báo");
-
     String safeLink = normalizeInternalLink(link);
 
     Notification notification =
         Notification.builder()
             .userId(userId)
             .channel("IN_APP")
-            .recipient(userId.toString())
+            .recipient(userId == null ? "SYSTEM" : userId.toString())
             .title(safeTitle)
             .body(safeMessage)
             .link(safeLink)
@@ -64,12 +59,20 @@ public class NotificationServiceImpl implements NotificationService {
 
     notificationRepository.save(notification);
 
-    runAfterCommit(() -> evictUnreadCache(userId));
+    if (userId != null) {
+      runAfterCommit(() -> evictUnreadCache(userId));
+    }
   }
 
   @Override
   public List<NotificationDto> getUserNotifications(UUID userId) {
-    requireUserId(userId);
+    if (userId == null) {
+      return notificationRepository
+          .findSystemNotifications(PageRequest.of(0, MAX_RECENT_ITEMS))
+          .stream()
+          .map(this::toDto)
+          .toList();
+    }
 
     return notificationRepository
         .findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, MAX_RECENT_ITEMS))
@@ -81,16 +84,22 @@ public class NotificationServiceImpl implements NotificationService {
   @Override
   @Transactional
   public void markAsRead(UUID notificationId, UUID userId) {
-    requireUserId(userId);
-
     if (notificationId == null) {
       throw new IllegalArgumentException("Notification ID là bắt buộc");
     }
 
-    Notification notification =
-        notificationRepository
-            .findByIdAndUserId(notificationId, userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+    Notification notification;
+    if (userId == null) {
+      notification =
+          notificationRepository
+              .findById(notificationId)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+    } else {
+      notification =
+          notificationRepository
+              .findByIdAndUserId(notificationId, userId)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+    }
 
     if (Boolean.TRUE.equals(notification.getIsRead())) {
       return;
@@ -101,31 +110,35 @@ public class NotificationServiceImpl implements NotificationService {
 
     notificationRepository.save(notification);
 
-    runAfterCommit(() -> evictUnreadCache(userId));
+    if (userId != null) {
+      runAfterCommit(() -> evictUnreadCache(userId));
+    }
   }
 
   @Override
   @Transactional
   public void markAllAsRead(UUID userId) {
-    requireUserId(userId);
-
-    notificationRepository.markAllAsRead(userId, Instant.now());
-
-    runAfterCommit(() -> cacheUnreadCount(userId, 0L));
+    if (userId == null) {
+      notificationRepository.markAllSystemAsRead(Instant.now());
+    } else {
+      notificationRepository.markAllAsRead(userId, Instant.now());
+      runAfterCommit(() -> cacheUnreadCount(userId, 0L));
+    }
   }
 
   @Override
+  @Transactional(readOnly = true)
   public long getUnreadCount(UUID userId) {
-    requireUserId(userId);
+    if (userId == null) {
+      return notificationRepository.countByUserIdIsNullAndIsReadFalse();
+    }
 
     Long cachedCount = readUnreadCountFromCache(userId);
-
     if (cachedCount != null) {
       return cachedCount;
     }
 
     long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);
-
     cacheUnreadCount(userId, unreadCount);
 
     return unreadCount;
@@ -200,7 +213,6 @@ public class NotificationServiceImpl implements NotificationService {
       return Long.parseLong(cachedValue);
     } catch (RuntimeException exception) {
       log.warn("Không thể đọc unread count từ Redis cho user {}", userId);
-
       return null;
     }
   }

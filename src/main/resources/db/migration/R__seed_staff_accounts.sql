@@ -1,0 +1,2 @@
+-- File này được làm rỗng để xoá logic seed data cũ, 
+-- đồng thời ngăn Flyway báo lỗi thiếu file (Validate failed: Detected applied migration not resolved locally).

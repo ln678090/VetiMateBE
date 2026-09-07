@@ -32,10 +32,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +50,6 @@ public class OrderServiceImpl implements OrderService {
   private final LoyaltyService loyaltyService;
   private final UserVoucherRepository userVoucherRepository;
   private final InvoiceReviewRepository invoiceReviewRepository;
-  private final SimpMessagingTemplate messagingTemplate;
   private final UserRepository userRepository;
 
   @Override
@@ -84,26 +81,75 @@ public class OrderServiceImpl implements OrderService {
 
     invoice.setSubtotal(subtotal);
 
-    BigDecimal discount = applyVoucher(currentUserId, request.getUserVoucherId(), subtotal);
+    BigDecimal discount =
+        applyVoucher(invoice, currentUserId, request.getUserVoucherId(), subtotal);
 
     invoice.setDiscountAmount(discount);
     invoice.setTotalAmount(subtotal.subtract(discount).max(BigDecimal.ZERO));
 
     Invoice savedInvoice = invoiceRepository.save(invoice);
 
-    sendNewOrderEvent(savedInvoice);
+    notificationService.createNotification(
+        null,
+        "Đơn hàng mới",
+        "Có đơn hàng mới: "
+            + invoice.getInvoiceCode()
+            + " với tổng tiền "
+            + invoice.getTotalAmount().toString()
+            + "đ",
+        "/staff/shop/orders");
 
     return mapToResponse(savedInvoice);
   }
 
-  /**
-   * Customer hiện bắt buộc gắn với User. POS khách vãng lai cần thiết kế invoice snapshot riêng
-   * trước khi bật lại.
-   */
   @Override
   @Transactional
   public OrderResponse posCheckout(UUID currentUserId, POSCheckoutRequest request) {
-    throw new UnsupportedOperationException("POS checkout chưa được hỗ trợ trong phạm vi hiện tại");
+    Invoice invoice =
+        Invoice.builder()
+            .type("SHOP")
+            .status("PAID")
+            .paidAt(Instant.now())
+            .items(new ArrayList<>())
+            .discountAmount(BigDecimal.ZERO)
+            .build();
+
+    invoice.setPaymentMethod(normalizePaymentMethod(request.getPaymentMethod()));
+    invoice.setInvoiceCode("ORD-" + System.currentTimeMillis());
+    invoice.setNote(truncateNote(request.getNote()));
+
+    BigDecimal subtotal = BigDecimal.ZERO;
+
+    for (POSCheckoutRequest.CartItemReq itemRequest : request.getItems()) {
+      Product product =
+          productRepository
+              .findById(itemRequest.getProductId())
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+      InvoiceItem item = new InvoiceItem();
+      item.setInvoice(invoice);
+      item.setProduct(product);
+      item.setNameSnapshot(product.getName());
+      item.setQuantity(BigDecimal.valueOf(itemRequest.getQuantity()));
+      item.setUnitPrice(product.getPrice());
+
+      BigDecimal itemTotal = product.getPrice().multiply(item.getQuantity());
+
+      item.setTotal(itemTotal);
+      invoice.getItems().add(item);
+
+      subtotal = subtotal.add(itemTotal);
+    }
+
+    invoice.setSubtotal(subtotal);
+    invoice.setTotalAmount(subtotal);
+
+    // Trừ kho ngay lập tức cho POS
+    deductInventory(invoice);
+
+    Invoice savedInvoice = invoiceRepository.save(invoice);
+
+    return mapToResponse(savedInvoice);
   }
 
   @Override
@@ -148,14 +194,49 @@ public class OrderServiceImpl implements OrderService {
         .toList();
   }
 
+  private void refundVoucherIfAny(Invoice invoice) {
+    if (invoice.getUserVoucher() != null) {
+      com.graduation.project.loyalty.entity.UserVoucher uv = invoice.getUserVoucher();
+      uv.setIsUsed(false);
+      uv.setUsedAt(null);
+      userVoucherRepository.save(uv);
+    }
+  }
+
   @Override
   @Transactional
-  public OrderResponse updateOrderStatus(UUID invoiceId, String newStatus) {
+  public OrderResponse updateOrderStatus(UUID invoiceId, String newStatus, String cancelReason) {
     Invoice invoice = requireInvoice(invoiceId);
 
     requireShopInvoice(invoice);
 
+    String oldStatus = invoice.getStatus();
     invoice.setStatus(newStatus);
+
+    if ("CANCELLED".equals(newStatus) && cancelReason != null && !cancelReason.trim().isEmpty()) {
+      String note = invoice.getNote() != null ? invoice.getNote() : "";
+      note = note + " | [SHOP_CANCELLED]: " + cancelReason.trim();
+      if (note.length() > 500) {
+        note = note.substring(0, 497) + "...";
+      }
+      invoice.setNote(note);
+    }
+
+    if ("CANCELLED".equals(newStatus)) {
+      refundVoucherIfAny(invoice);
+
+      // Nếu trước đó đã xác nhận, đang giao hoặc đã giao, cần hoàn lại kho
+      if ("CONFIRMED".equals(oldStatus)
+          || "SHIPPING".equals(oldStatus)
+          || "DELIVERED".equals(oldStatus)
+          || "PAID".equals(oldStatus)) {
+        restoreInventory(invoice);
+      }
+    } else if ("CONFIRMED".equals(newStatus)
+        && ("DRAFT".equals(oldStatus) || "PENDING".equals(oldStatus))) {
+      // Trừ kho khi đơn hàng online được xác nhận
+      deductInventory(invoice);
+    }
 
     Invoice savedInvoice = invoiceRepository.save(invoice);
 
@@ -166,7 +247,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     if (ownerUserId != null) {
-      sendOrderStatusNotification(savedInvoice, ownerUserId, newStatus);
+      sendOrderStatusNotification(savedInvoice, ownerUserId, newStatus, cancelReason);
     }
 
     return mapToResponse(savedInvoice);
@@ -202,7 +283,17 @@ public class OrderServiceImpl implements OrderService {
     requireShopInvoice(invoice);
 
     if (Boolean.TRUE.equals(request.getAccept())) {
+      String oldStatus = invoice.getStatus();
       invoice.setStatus("CANCELLED");
+      refundVoucherIfAny(invoice);
+
+      // Hủy đơn qua yêu cầu hủy, cũng cần hoàn kho nếu đã trừ
+      if ("CONFIRMED".equals(oldStatus)
+          || "SHIPPING".equals(oldStatus)
+          || "DELIVERED".equals(oldStatus)
+          || "PAID".equals(oldStatus)) {
+        restoreInventory(invoice);
+      }
     } else {
       removeCancellationRequest(invoice);
     }
@@ -320,6 +411,9 @@ public class OrderServiceImpl implements OrderService {
   }
 
   private String truncateNote(String value) {
+    if (value == null) {
+      return null;
+    }
     if (value.length() <= MAX_NOTE_LENGTH) {
       return value;
     }
@@ -362,7 +456,8 @@ public class OrderServiceImpl implements OrderService {
     return subtotal;
   }
 
-  private BigDecimal applyVoucher(UUID currentUserId, UUID userVoucherId, BigDecimal subtotal) {
+  private BigDecimal applyVoucher(
+      Invoice invoice, UUID currentUserId, UUID userVoucherId, BigDecimal subtotal) {
     if (userVoucherId == null) {
       return BigDecimal.ZERO;
     }
@@ -403,25 +498,13 @@ public class OrderServiceImpl implements OrderService {
     userVoucher.setUsedAt(LocalDateTime.now());
 
     userVoucherRepository.save(userVoucher);
+    invoice.setUserVoucher(userVoucher);
 
     return discount.min(subtotal);
   }
 
-  private void sendNewOrderEvent(Invoice invoice) {
-    messagingTemplate.convertAndSend(
-        "/topic/shop-orders",
-        Map.of(
-            "type",
-            "NEW_ORDER",
-            "orderId",
-            invoice.getId().toString(),
-            "orderCode",
-            invoice.getInvoiceCode(),
-            "totalAmount",
-            invoice.getTotalAmount().toString()));
-  }
-
-  private void sendOrderStatusNotification(Invoice invoice, UUID ownerUserId, String newStatus) {
+  private void sendOrderStatusNotification(
+      Invoice invoice, UUID ownerUserId, String newStatus, String cancelReason) {
     String statusText =
         switch (newStatus) {
           case "CONFIRMED" -> "đã được xác nhận";
@@ -431,10 +514,15 @@ public class OrderServiceImpl implements OrderService {
           default -> "được cập nhật trạng thái";
         };
 
+    String message = "Đơn hàng của bạn " + statusText + ".";
+    if ("CANCELLED".equals(newStatus) && cancelReason != null && !cancelReason.trim().isEmpty()) {
+      message += " Lý do: " + cancelReason.trim();
+    }
+
     notificationService.createNotification(
         ownerUserId,
         "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
-        "Đơn hàng của bạn " + statusText + ".",
+        message,
         "/profile/orders?orderId=" + invoice.getId());
   }
 
@@ -484,6 +572,34 @@ public class OrderServiceImpl implements OrderService {
     productRepository.save(product);
   }
 
+  private void deductInventory(Invoice invoice) {
+    for (InvoiceItem item : invoice.getItems()) {
+      if (item.getProduct() != null) {
+        Product product = item.getProduct();
+        int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+        int qty = item.getQuantity().intValue();
+        if (currentStock < qty) {
+          throw new IllegalStateException(
+              "Sản phẩm " + product.getName() + " không đủ số lượng tồn kho");
+        }
+        product.setStockQuantity(currentStock - qty);
+        productRepository.save(product);
+      }
+    }
+  }
+
+  private void restoreInventory(Invoice invoice) {
+    for (InvoiceItem item : invoice.getItems()) {
+      if (item.getProduct() != null) {
+        Product product = item.getProduct();
+        int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+        int qty = item.getQuantity().intValue();
+        product.setStockQuantity(currentStock + qty);
+        productRepository.save(product);
+      }
+    }
+  }
+
   private OrderResponse mapToResponse(Invoice invoice) {
     String frontendStatus = mapFrontendStatus(invoice.getStatus());
 
@@ -499,6 +615,10 @@ public class OrderServiceImpl implements OrderService {
                             item.getProduct() == null ? null : item.getProduct().getImageUrl())
                         .price(item.getUnitPrice())
                         .quantity(item.getQuantity().intValue())
+                        .stockQuantity(
+                            item.getProduct() != null ? item.getProduct().getStockQuantity() : 0)
+                        .isActive(
+                            item.getProduct() != null ? item.getProduct().getIsActive() : false)
                         .build())
             .toList();
 

@@ -11,4 +11,6 @@ public interface UserVoucherRepository extends JpaRepository<UserVoucher, UUID> 
   List<UserVoucher> findByUserIdOrderByRedeemedAtDesc(UUID userId);
 
   boolean existsByUserIdAndVoucherId(UUID userId, UUID voucherId);
+
+  List<UserVoucher> findAllByUserIdAndVoucherId(UUID userId, UUID voucherId);
 }

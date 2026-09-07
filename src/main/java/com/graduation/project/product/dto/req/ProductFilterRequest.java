@@ -18,7 +18,7 @@ public record ProductFilterRequest(
     ) {
   public ProductFilterRequest {
     if (page == null || page < 0) page = 0;
-    if (size == null || size <= 0 || size > 100) size = 12;
+    if (size == null || size <= 0 || size > 1000) size = 12;
     if (sort == null || sort.isBlank()) sort = "featured";
   }
 }

@@ -14,9 +14,22 @@ import org.springframework.data.repository.query.Param;
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
   List<Notification> findByUserIdOrderByCreatedAtDescIdDesc(UUID userId, Pageable pageable);
 
+  @Query("SELECT n FROM Notification n WHERE n.userId IS NULL ORDER BY n.createdAt DESC, n.id DESC")
+  List<Notification> findSystemNotifications(Pageable pageable);
+
+  List<Notification> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+
+  List<Notification> findAllByUserIdIsNullOrderByCreatedAtDesc();
+
+  List<Notification> findAllByUserIdAndIsReadFalse(UUID userId);
+
+  List<Notification> findAllByUserIdIsNullAndIsReadFalse();
+
   Optional<Notification> findByIdAndUserId(UUID id, UUID userId);
 
   long countByUserIdAndIsReadFalse(UUID userId);
+
+  long countByUserIdIsNullAndIsReadFalse();
 
   @Modifying(clearAutomatically = true)
   @Query(
@@ -28,4 +41,15 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         AND notification.isRead = false
       """)
   int markAllAsRead(@Param("userId") UUID userId, @Param("readAt") Instant readAt);
+
+  @Modifying(clearAutomatically = true)
+  @Query(
+      """
+      UPDATE Notification notification
+      SET notification.isRead = true,
+          notification.readAt = :readAt
+      WHERE notification.userId IS NULL
+        AND notification.isRead = false
+      """)
+  int markAllSystemAsRead(@Param("readAt") Instant readAt);
 }

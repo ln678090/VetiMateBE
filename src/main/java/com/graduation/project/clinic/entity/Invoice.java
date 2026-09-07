@@ -1,5 +1,6 @@
 package com.graduation.project.clinic.entity;
 
+import com.graduation.project.loyalty.entity.UserVoucher;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -66,6 +67,10 @@ public class Invoice {
 
   @Column(name = "note", length = 500)
   private String note;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_voucher_id")
+  private UserVoucher userVoucher;
 
   @OneToMany(
       mappedBy = "invoice",

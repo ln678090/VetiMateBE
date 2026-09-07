@@ -37,4 +37,17 @@ public interface ProductRepository
   Page<Product> findByIsFeaturedTrueAndIsActiveTrueOrderByRatingDesc(Pageable pageable);
 
   boolean existsBySlug(String slug);
+
+  @Query(
+      """
+            SELECT new com.graduation.project.inventory.dto.resp.WarehouseStockResp(
+                p.id, p.name, p.category.name, p.brand.name, SUM(b.remainingQty)
+            )
+            FROM Product p
+            LEFT JOIN StockBatch b ON p.id = b.product.id
+            GROUP BY p.id, p.name, p.category.name, p.brand.name
+            ORDER BY p.createdAt DESC
+            """)
+  Page<com.graduation.project.inventory.dto.resp.WarehouseStockResp> findAllWarehouseStock(
+      Pageable pageable);
 }

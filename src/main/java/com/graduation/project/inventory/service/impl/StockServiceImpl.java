@@ -9,6 +9,7 @@ import com.graduation.project.inventory.entity.Medicine;
 import com.graduation.project.inventory.entity.StockBatch;
 import com.graduation.project.inventory.entity.StockVoucher;
 import com.graduation.project.inventory.entity.StockVoucherItem;
+import com.graduation.project.inventory.entity.Supplier;
 import com.graduation.project.inventory.entity.VoucherStatus;
 import com.graduation.project.inventory.entity.VoucherType;
 import com.graduation.project.inventory.entity.WarehouseLocation;
@@ -110,11 +111,12 @@ public class StockServiceImpl implements StockService {
     staffRepository
         .findByUserIdAndActiveTrue(approvedBy)
         .ifPresentOrElse(
-            staff -> voucher.setApprovedBy(staff.getId()), () -> voucher.setApprovedBy(null));
+            staff -> voucher.setApprovedBy(staff.getId()),
+            () -> {
+              throw new IllegalArgumentException(
+                  "Tài khoản duyệt phiếu không hợp lệ (không phải là nhân viên hoặc đã bị khóa).");
+            });
     voucherRepository.save(voucher);
-
-    // Sync product total stock
-    syncProductStockQuantities(items);
 
     voucher.setItems(items);
     log.info("Duyệt phiếu kho {} thành công", voucherId);
@@ -145,6 +147,13 @@ public class StockServiceImpl implements StockService {
     List<StockVoucherItem> items = voucherItemRepository.findByVoucherIdOrderById(id);
     voucher.setItems(items);
     return inventoryMapper.toVoucherResp(voucher);
+  }
+
+  @Override
+  public Page<com.graduation.project.inventory.dto.resp.WarehouseStockResp> getWarehouseStock(
+      int page, int size) {
+    Pageable pageable = PageRequest.of(page, size);
+    return productRepository.findAllWarehouseStock(pageable);
   }
 
   @Override
@@ -342,7 +351,7 @@ public class StockServiceImpl implements StockService {
   // PRIVATE: IMPORT / EXPORT / STOCKTAKE / TRANSFER LOGIC
   // ============================================================
 
-  /** Nhập kho: tạo batch mới cho mỗi dòng item theo destinationWarehouse (mặc định STORAGE) */
+  /** Nhập kho: tạo batch mới cho mỗi dòng item theo destinationWarehouse (mặc định STORAGE) và lưu nhà cung cấp */
   private void processImport(StockVoucher voucher, List<StockVoucherItem> items) {
     WarehouseLocation targetWh =
         voucher.getDestinationWarehouse() != null
@@ -354,6 +363,7 @@ public class StockServiceImpl implements StockService {
           StockBatch.builder()
               .medicine(item.getMedicine())
               .product(item.getProduct())
+              .supplier(item.getSupplier())
               .warehouse(targetWh)
               .quantity(item.getQuantity())
               .remainingQty(item.getQuantity())
@@ -429,15 +439,16 @@ public class StockServiceImpl implements StockService {
         }
 
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-          String itemName = item.getItemName();
           throw new IllegalArgumentException(
-              "Không đủ tồn kho cho "
-                  + itemName
-                  + " tại kho "
-                  + sourceWh
-                  + ". Thiếu: "
-                  + remaining);
+              "Không đủ tồn kho cho xuất FEFO tại kho " + sourceWh + ". Còn thiếu: " + remaining);
         }
+      }
+
+      // Xuất kho: cộng số lượng vào sản phẩm trên shop (chuyển từ kho lên kệ)
+      if (item.getProduct() != null) {
+        Product product = item.getProduct();
+        product.setStockQuantity(product.getStockQuantity() + qtyToExport.intValue());
+        productRepository.save(product);
       }
     }
   }
@@ -493,25 +504,11 @@ public class StockServiceImpl implements StockService {
   // ============================================================
   // HELPERS
   // ============================================================
-
-  /** Cập nhật tổng tồn kho cho tất cả các product có trong danh sách item */
-  private void syncProductStockQuantities(List<StockVoucherItem> items) {
-    items.stream()
-        .filter(item -> item.getProduct() != null)
-        .map(item -> item.getProduct())
-        .distinct()
-        .forEach(
-            product -> {
-              BigDecimal totalStock = batchRepository.sumRemainingQtyByProductId(product.getId());
-              product.setStockQuantity(totalStock.intValue());
-              productRepository.save(product);
-            });
-  }
-
   private StockVoucherItem buildVoucherItem(StockVoucher voucher, VoucherItemRequest req) {
     Medicine medicine = null;
     Product product = null;
     StockBatch batch = null;
+    Supplier supplier = null;
 
     if (req.medicineId() != null) {
       medicine =
@@ -534,6 +531,15 @@ public class StockServiceImpl implements StockService {
               .orElseThrow(
                   () -> new NoSuchElementException("Không tìm thấy lô hàng: " + req.batchId()));
     }
+    if (req.supplierId() != null) {
+      supplier =
+          supplierRepository
+              .findById(req.supplierId())
+              .orElseThrow(
+                  () ->
+                      new NoSuchElementException(
+                          "Không tìm thấy nhà cung cấp: " + req.supplierId()));
+    }
 
     if (medicine == null && product == null) {
       throw new IllegalArgumentException("Mỗi dòng phải có thuốc hoặc sản phẩm");
@@ -544,6 +550,7 @@ public class StockServiceImpl implements StockService {
         .medicine(medicine)
         .product(product)
         .batch(batch)
+        .supplier(supplier)
         .quantity(req.quantity())
         .unitPrice(req.unitPrice())
         .batchCode(req.batchCode())
