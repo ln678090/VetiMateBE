@@ -18,7 +18,7 @@ jobs:
           POSTGRES_PASSWORD: cipass
           POSTGRES_DB: cidb
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -27,7 +27,7 @@ jobs:
       redis:
         image: redis:7-alpine
         ports:
-          - 6379:6379
+          - 6377:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -52,13 +52,13 @@ jobs:
       - name: Run Flyway migrate
         run: >
           ./mvnw flyway:migrate -B
-          -Dflyway.url=jdbc:postgresql://localhost:5432/cidb
+          -Dflyway.url=jdbc:postgresql://localhost:5433/cidb
           -Dflyway.user=ciuser
           -Dflyway.password=cipass
 
       - name: Run Spring Boot validation test
         env:
-          DB_URL: jdbc:postgresql://localhost:5432/cidb
+          DB_URL: jdbc:postgresql://localhost:5433/cidb
           DB_USERNAME_POSTGRES: ciuser
           DB_PASSWORD: cipass
           REDIS_USERNAME: ""
