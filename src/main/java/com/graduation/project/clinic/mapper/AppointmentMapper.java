@@ -9,7 +9,7 @@ import org.mapstruct.Mapping;
 public interface AppointmentMapper {
 
   @Mapping(target = "customerId", source = "customer.id")
-  @Mapping(target = "customerName", source = "customer.fullName")
+  @Mapping(target = "customerName", source = "customer.user.fullName")
   @Mapping(target = "petId", source = "pet.id")
   @Mapping(target = "petName", source = "pet.name")
   @Mapping(target = "serviceId", source = "service.id")

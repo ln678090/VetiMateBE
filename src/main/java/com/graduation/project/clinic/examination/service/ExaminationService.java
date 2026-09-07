@@ -22,6 +22,7 @@ import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.inventory.entity.Medicine;
 import com.graduation.project.inventory.repository.MedicineRepository;
+import com.graduation.project.notification.service.NotificationService;
 import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.staff.entity.StaffRoleType;
 import com.graduation.project.staff.repository.StaffRepository;
@@ -44,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ExaminationService {
 
+  private final NotificationService notificationService;
   // private static final String DOCTOR_ROLE_TYPE = "DOCTOR";
 
   private final AppointmentRepository appointmentRepository;
@@ -170,6 +172,7 @@ public class ExaminationService {
     Instant completedAt = Instant.now();
 
     medicalRecord.setStatus(MedicalRecordStatus.COMPLETED);
+
     appointment.setStatus(AppointmentStatus.DONE);
 
     pet.updateHealthSnapshot(
@@ -183,7 +186,22 @@ public class ExaminationService {
 
     MedicalRecord savedRecord = medicalRecordRepository.saveAndFlush(medicalRecord);
 
+    notifyOwnerAboutCompletedExamination(appointment, pet);
+
     return toResponse(savedRecord);
+  }
+
+  private void notifyOwnerAboutCompletedExamination(Appointment appointment, Pet pet) {
+    UUID ownerUserId = appointment.getCustomer().getUser().getId();
+
+    notificationService.createNotification(
+        ownerUserId,
+        "Ca khám đã hoàn tất",
+        "Ca khám của "
+            + pet.getName()
+            + " đã hoàn tất. Bạn có thể xem "
+            + "kết quả trong hồ sơ sức khỏe.",
+        "/profile/pets/" + pet.getId());
   }
 
   public List<MedicineOptionResponse> getMedicines() {

@@ -203,7 +203,9 @@ public class ProductServiceImpl implements ProductService {
         .map(
             review -> {
               String userName =
-                  review.getCustomer() != null ? review.getCustomer().getFullName() : "Khách hàng";
+                  review.getCustomer() != null
+                      ? review.getCustomer().getUser().getFullName()
+                      : "Khách hàng";
               String avatarStr = "";
               if (userName != null && !userName.isEmpty()) {
                 String[] parts = userName.trim().split(" ");

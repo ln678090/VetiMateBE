@@ -89,7 +89,7 @@ public class QueueTicketService {
       Appointment apt = ticket.getAppointment();
       appointmentId = apt.getId();
       if (apt.getCustomer() != null) {
-        customerName = apt.getCustomer().getFullName();
+        customerName = apt.getCustomer().getUser().getFullName();
       }
       if (apt.getPet() != null) {
         petName = apt.getPet().getName();

@@ -16,6 +16,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
+  @EntityGraph(attributePaths = {"service"})
+  @Query(
+      """
+      SELECT appointment
+      FROM Appointment appointment
+      WHERE appointment.pet.id = :petId
+        AND appointment.customer.id = :customerId
+      ORDER BY appointment.startAt DESC
+      """)
+  List<Appointment> findOwnerPetAppointments(
+      @Param("petId") UUID petId, @Param("customerId") UUID customerId, Pageable pageable);
 
   // JOIN FETCH đầy đủ customer + pet + service để flatten ra DTO (chống N+1)
   @Query(

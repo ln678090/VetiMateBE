@@ -9,8 +9,8 @@ import org.mapstruct.*;
 public interface PetMapper {
 
   @Mapping(target = "customerId", source = "customer.id")
-  @Mapping(target = "customerName", source = "customer.fullName")
-  PetDto toDto(Pet entity);
+  @Mapping(target = "customerName", source = "customer.user.fullName")
+  PetDto toDto(Pet pet);
 
   // customer duoc gan trong service (tu customerId) -> ignore o day
   @Mapping(target = "id", ignore = true)

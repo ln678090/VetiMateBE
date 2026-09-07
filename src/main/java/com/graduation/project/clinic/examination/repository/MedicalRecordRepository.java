@@ -16,6 +16,29 @@ import org.springframework.data.repository.query.Param;
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UUID> {
   Optional<MedicalRecord> findByAppointmentId(UUID appointmentId);
 
+  @EntityGraph(
+      attributePaths = {
+        "appointment",
+        "appointment.pet",
+        "appointment.customer",
+        "appointment.service",
+        "doctor"
+      })
+  @Query(
+      """
+      SELECT medicalRecord
+      FROM MedicalRecord medicalRecord
+      WHERE medicalRecord.appointment.pet.id = :petId
+        AND medicalRecord.appointment.customer.id = :customerId
+        AND medicalRecord.status = :status
+      ORDER BY medicalRecord.updatedAt DESC
+      """)
+  Page<MedicalRecord> findOwnerPetHistory(
+      @Param("petId") UUID petId,
+      @Param("customerId") UUID customerId,
+      @Param("status") MedicalRecordStatus status,
+      Pageable pageable);
+
   @Query(
       value =
           """

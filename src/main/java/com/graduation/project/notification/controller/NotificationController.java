@@ -1,77 +1,60 @@
 package com.graduation.project.notification.controller;
 
+import com.graduation.project.auth.utils.SecurityUtils;
 import com.graduation.project.notification.dto.NotificationDto;
+import com.graduation.project.notification.dto.UnreadNotificationCountDto;
 import com.graduation.project.notification.service.NotificationService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/notifications")
 @RequiredArgsConstructor
+@RequestMapping("/api/notifications")
+@PreAuthorize("isAuthenticated()")
 public class NotificationController {
 
   private final NotificationService notificationService;
 
-  @GetMapping
-  public ResponseEntity<List<NotificationDto>> getNotifications(JwtAuthenticationToken auth) {
-    // If user is staff, they might need both personal and system (null userId) notifications,
-    // but for now we fetch based on role. If they are staff, fetch null (system) + personal?
-    // Let's assume STAFF only get system (null) and Users get personal (userId).
-    UUID userId = null;
+  private UUID getTargetUserId(Authentication auth) {
     if (auth.getAuthorities().stream()
-        .noneMatch(
+        .anyMatch(
             a ->
                 a.getAuthority().startsWith("ROLE_STAFF")
                     || a.getAuthority().startsWith("ROLE_ADMIN"))) {
-      userId = UUID.fromString(auth.getName());
+      return null;
     }
+    return SecurityUtils.currentUserId(auth);
+  }
 
-    return ResponseEntity.ok(notificationService.getUserNotifications(userId));
+  @GetMapping
+  public List<NotificationDto> getNotifications(Authentication authentication) {
+    UUID userId = getTargetUserId(authentication);
+    return notificationService.getUserNotifications(userId);
   }
 
   @GetMapping("/unread-count")
-  public ResponseEntity<Map<String, Long>> getUnreadCount(JwtAuthenticationToken auth) {
-    UUID userId = null;
-    if (auth.getAuthorities().stream()
-        .noneMatch(
-            a ->
-                a.getAuthority().startsWith("ROLE_STAFF")
-                    || a.getAuthority().startsWith("ROLE_ADMIN"))) {
-      userId = UUID.fromString(auth.getName());
-    }
-    return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(userId)));
+  public UnreadNotificationCountDto getUnreadCount(Authentication authentication) {
+    UUID userId = getTargetUserId(authentication);
+    return new UnreadNotificationCountDto(notificationService.getUnreadCount(userId));
   }
 
-  @PutMapping("/{id}/read")
-  public ResponseEntity<Void> markAsRead(@PathVariable UUID id, JwtAuthenticationToken auth) {
-    UUID userId = null;
-    if (auth.getAuthorities().stream()
-        .noneMatch(
-            a ->
-                a.getAuthority().startsWith("ROLE_STAFF")
-                    || a.getAuthority().startsWith("ROLE_ADMIN"))) {
-      userId = UUID.fromString(auth.getName());
-    }
-    notificationService.markAsRead(id, userId);
-    return ResponseEntity.ok().build();
+  @PatchMapping("/{notificationId}/read")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void markAsRead(@PathVariable("notificationId") UUID notificationId, Authentication authentication) {
+    UUID userId = getTargetUserId(authentication);
+    notificationService.markAsRead(notificationId, userId);
   }
 
-  @PutMapping("/read-all")
-  public ResponseEntity<Void> markAllAsRead(JwtAuthenticationToken auth) {
-    UUID userId = null;
-    if (auth.getAuthorities().stream()
-        .noneMatch(
-            a ->
-                a.getAuthority().startsWith("ROLE_STAFF")
-                    || a.getAuthority().startsWith("ROLE_ADMIN"))) {
-      userId = UUID.fromString(auth.getName());
-    }
+  @PatchMapping("/read-all")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void markAllAsRead(Authentication authentication) {
+    UUID userId = getTargetUserId(authentication);
     notificationService.markAllAsRead(userId);
-    return ResponseEntity.ok().build();
   }
 }
