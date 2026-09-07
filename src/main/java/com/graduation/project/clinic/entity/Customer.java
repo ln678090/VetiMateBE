@@ -1,12 +1,27 @@
 package com.graduation.project.clinic.entity;
 
+import com.graduation.project.user.entity.User;
 import com.graduation.project.utils.annotation.UuidV7;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "clinic_customers")
@@ -22,21 +37,9 @@ public class Customer {
   @Column(name = "id", updatable = false, nullable = false)
   private UUID id;
 
-  /** Link tới User nếu khách có tài khoản; nullable cho khách vãng lai (lễ tân tạo). */
-  @Column(name = "user_id")
-  private UUID userId;
-
-  @Column(name = "full_name", nullable = false, length = 150)
-  private String fullName;
-
-  @Column(name = "phone", nullable = false, length = 20)
-  private String phone;
-
-  @Column(name = "email", length = 150)
-  private String email;
-
-  @Column(name = "address", length = 255)
-  private String address;
+  @OneToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user_id", nullable = false, unique = true, updatable = false)
+  private User user;
 
   @Column(name = "note", length = 500)
   private String note;
@@ -58,12 +61,13 @@ public class Customer {
   @PrePersist
   void onCreate() {
     Instant now = Instant.now();
-    this.createdAt = now;
-    this.updatedAt = now;
+
+    createdAt = now;
+    updatedAt = now;
   }
 
   @PreUpdate
   void onUpdate() {
-    this.updatedAt = Instant.now();
+    updatedAt = Instant.now();
   }
 }

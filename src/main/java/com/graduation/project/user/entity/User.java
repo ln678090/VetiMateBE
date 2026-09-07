@@ -63,6 +63,9 @@ public class User {
   @Column(name = "phone", length = 20)
   private String phone;
 
+  @Column(name = "address", length = 255)
+  private String address;
+
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "user_roles",

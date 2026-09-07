@@ -1,24 +1,39 @@
 package com.graduation.project.clinic.service.impl;
 
+import com.graduation.project.clinic.dto.req.CancelRequestReq;
 import com.graduation.project.clinic.dto.req.CheckoutRequest;
 import com.graduation.project.clinic.dto.req.POSCheckoutRequest;
+import com.graduation.project.clinic.dto.req.ProcessCancelReq;
+import com.graduation.project.clinic.dto.req.ReviewOrderReq;
+import com.graduation.project.clinic.dto.req.ReviewProductReq;
 import com.graduation.project.clinic.dto.resp.OrderItemResponse;
 import com.graduation.project.clinic.dto.resp.OrderResponse;
 import com.graduation.project.clinic.entity.Customer;
 import com.graduation.project.clinic.entity.Invoice;
 import com.graduation.project.clinic.entity.InvoiceItem;
+import com.graduation.project.clinic.entity.InvoiceReview;
 import com.graduation.project.clinic.repository.CustomerRepository;
 import com.graduation.project.clinic.repository.InvoiceRepository;
+import com.graduation.project.clinic.repository.InvoiceReviewRepository;
 import com.graduation.project.clinic.service.OrderService;
+import com.graduation.project.common.exception.ResourceNotFoundException;
+import com.graduation.project.loyalty.entity.DiscountType;
+import com.graduation.project.loyalty.entity.UserVoucher;
+import com.graduation.project.loyalty.entity.Voucher;
+import com.graduation.project.loyalty.repository.UserVoucherRepository;
+import com.graduation.project.loyalty.service.LoyaltyService;
 import com.graduation.project.notification.service.NotificationService;
 import com.graduation.project.product.entity.Product;
 import com.graduation.project.product.repository.ProductRepository;
-import com.graduation.project.staff.entity.Staff;
-import com.graduation.project.staff.repository.StaffRepository;
+import com.graduation.project.user.entity.User;
+import com.graduation.project.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -28,463 +43,498 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
+  private static final int MAX_NOTE_LENGTH = 500;
+
   private final InvoiceRepository invoiceRepository;
   private final CustomerRepository customerRepository;
   private final ProductRepository productRepository;
-  private final StaffRepository staffRepository;
   private final NotificationService notificationService;
-  private final com.graduation.project.loyalty.service.LoyaltyService loyaltyService;
-  private final com.graduation.project.loyalty.repository.UserVoucherRepository
-      userVoucherRepository;
-  private final com.graduation.project.clinic.repository.InvoiceReviewRepository
-      invoiceReviewRepository;
+  private final LoyaltyService loyaltyService;
+  private final UserVoucherRepository userVoucherRepository;
+  private final InvoiceReviewRepository invoiceReviewRepository;
   private final SimpMessagingTemplate messagingTemplate;
+  private final UserRepository userRepository;
 
   @Override
   @Transactional
   public OrderResponse checkout(UUID currentUserId, CheckoutRequest request) {
-    // Find or create customer
+    User account = requireUser(currentUserId);
+
     Customer customer =
-        customerRepository
-            .findByUserId(currentUserId)
-            .orElseGet(
-                () -> {
-                  Customer newCust = new Customer();
-                  newCust.setUserId(currentUserId);
-                  newCust.setFullName(request.getFullName());
-                  newCust.setPhone(request.getPhone());
-                  return newCust;
-                });
+        customerRepository.findByUser_Id(currentUserId).orElseGet(() -> createCustomer(account));
 
-    // Update address / note in customer (optional) or build a shipping address string
-    String shippingAddress =
-        request.getSpecificAddress() + ", " + request.getDistrict() + ", " + request.getCity();
-    customer.setAddress(shippingAddress);
-    customerRepository.save(customer);
+    String shippingAddress = buildShippingAddress(request);
 
-    // Build invoice
     Invoice invoice =
         Invoice.builder()
             .customer(customer)
             .type("SHOP")
             .status("DRAFT")
-            .items(new java.util.ArrayList<>())
+            .items(new ArrayList<>())
             .discountAmount(BigDecimal.ZERO)
             .build();
 
-    String paymentMethod = request.getPaymentMethod();
-    if ("COD".equals(paymentMethod)) {
-      paymentMethod = "CASH";
-    }
-    invoice.setPaymentMethod(paymentMethod);
+    invoice.setPaymentMethod(normalizePaymentMethod(request.getPaymentMethod()));
 
     invoice.setInvoiceCode("ORD-" + System.currentTimeMillis());
 
-    // Save shipping details in note since DB doesn't have a dedicated column
-    String note =
-        "Shipping Address: "
-            + shippingAddress
-            + " | Phone: "
-            + request.getPhone()
-            + " | Note: "
-            + request.getNote();
-    if (note.length() > 500) {
-      note = note.substring(0, 497) + "...";
-    }
-    invoice.setNote(note);
+    invoice.setNote(buildOrderNote(shippingAddress, request.getPhone(), request.getNote()));
 
-    BigDecimal total = BigDecimal.ZERO;
-    for (CheckoutRequest.CartItemReq itemReq : request.getItems()) {
-      Product product =
-          productRepository
-              .findById(itemReq.getProductId())
-              .orElseThrow(() -> new RuntimeException("Product not found"));
+    BigDecimal subtotal = addOrderItems(invoice, request.getItems());
 
-      InvoiceItem item = new InvoiceItem();
-      item.setInvoice(invoice);
-      item.setProduct(product);
-      item.setNameSnapshot(product.getName());
-      item.setQuantity(new BigDecimal(itemReq.getQuantity()));
-      item.setUnitPrice(product.getPrice());
+    invoice.setSubtotal(subtotal);
 
-      BigDecimal itemTotal = product.getPrice().multiply(item.getQuantity());
-      item.setTotal(itemTotal);
-
-      invoice.getItems().add(item);
-      total = total.add(itemTotal);
-    }
-
-    invoice.setSubtotal(total);
-
-    BigDecimal discount = BigDecimal.ZERO;
-    if (request.getUserVoucherId() != null) {
-      com.graduation.project.loyalty.entity.UserVoucher uv =
-          userVoucherRepository
-              .findById(request.getUserVoucherId())
-              .orElseThrow(() -> new RuntimeException("Voucher not found"));
-      if (uv.getIsUsed()) throw new RuntimeException("Voucher already used");
-      if (!uv.getUser().getId().equals(currentUserId))
-        throw new RuntimeException("Not your voucher");
-
-      com.graduation.project.loyalty.entity.Voucher v = uv.getVoucher();
-      if (v.getMinOrderAmount() != null && total.compareTo(v.getMinOrderAmount()) < 0) {
-        throw new RuntimeException("Order amount not enough for this voucher");
-      }
-
-      if (v.getDiscountType() == com.graduation.project.loyalty.entity.DiscountType.FIXED) {
-        discount = v.getDiscountValue();
-      } else {
-        discount = total.multiply(v.getDiscountValue()).divide(new BigDecimal("100"));
-        if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
-          discount = v.getMaxDiscount();
-        }
-      }
-
-      uv.setIsUsed(true);
-      uv.setUsedAt(java.time.LocalDateTime.now());
-      userVoucherRepository.save(uv);
-    }
+    BigDecimal discount = applyVoucher(currentUserId, request.getUserVoucherId(), subtotal);
 
     invoice.setDiscountAmount(discount);
-    invoice.setTotalAmount(total.subtract(discount).max(BigDecimal.ZERO));
+    invoice.setTotalAmount(subtotal.subtract(discount).max(BigDecimal.ZERO));
 
-    invoice = invoiceRepository.save(invoice);
+    Invoice savedInvoice = invoiceRepository.save(invoice);
 
-    // Push WebSocket notification to shop staff
-    messagingTemplate.convertAndSend(
-        "/topic/shop-orders",
-        java.util.Map.of(
-            "type", "NEW_ORDER",
-            "orderId", invoice.getId().toString(),
-            "orderCode", invoice.getInvoiceCode(),
-            "totalAmount", invoice.getTotalAmount().toString()));
+    sendNewOrderEvent(savedInvoice);
 
-    return mapToResponse(invoice);
+    return mapToResponse(savedInvoice);
   }
 
+  /**
+   * Customer hiện bắt buộc gắn với User. POS khách vãng lai cần thiết kế invoice snapshot riêng
+   * trước khi bật lại.
+   */
   @Override
   @Transactional
   public OrderResponse posCheckout(UUID currentUserId, POSCheckoutRequest request) {
-    // Find or create walk-in customer
-    Customer customer =
-        customerRepository
-            .findByPhone("0000000000")
-            .orElseGet(
-                () -> {
-                  Customer newCust = new Customer();
-                  newCust.setFullName("Khách vãng lai");
-                  newCust.setPhone("0000000000");
-                  newCust.setAddress("Tại quầy");
-                  return customerRepository.save(newCust);
-                });
-
-    // Build invoice
-    Invoice invoice = new Invoice();
-    invoice.setCustomer(customer);
-    invoice.setType("SHOP");
-    invoice.setStatus("PAID"); // POS is usually paid immediately
-    invoice.setPaymentMethod(request.getPaymentMethod());
-    invoice.setPaidAt(java.time.Instant.now()); // Required by DB constraint when status is PAID
-    invoice.setInvoiceCode("POS-" + System.currentTimeMillis());
-    invoice.setNote(request.getNote());
-
-    Staff staff = staffRepository.findByUserIdAndActiveTrue(currentUserId).orElse(null);
-    if (staff != null) {
-      invoice.setCreatedBy(staff.getId());
-    }
-
-    BigDecimal total = BigDecimal.ZERO;
-
-    for (POSCheckoutRequest.CartItemReq itemReq : request.getItems()) {
-      Product product =
-          productRepository
-              .findById(itemReq.getProductId())
-              .orElseThrow(() -> new RuntimeException("Product not found"));
-
-      // Decrease stock quantity
-      if (product.getStockQuantity() < itemReq.getQuantity()) {
-        throw new RuntimeException("Not enough stock for product: " + product.getName());
-      }
-      product.setStockQuantity(product.getStockQuantity() - itemReq.getQuantity());
-      productRepository.save(product);
-
-      InvoiceItem item = new InvoiceItem();
-      item.setInvoice(invoice);
-      item.setProduct(product);
-      item.setNameSnapshot(product.getName());
-      item.setQuantity(new BigDecimal(itemReq.getQuantity()));
-      item.setUnitPrice(product.getPrice());
-
-      BigDecimal itemTotal = product.getPrice().multiply(item.getQuantity());
-      item.setTotal(itemTotal);
-
-      invoice.getItems().add(item);
-      total = total.add(itemTotal);
-    }
-
-    invoice.setSubtotal(total);
-    invoice.setTotalAmount(total);
-
-    invoice = invoiceRepository.save(invoice);
-
-    return mapToResponse(invoice);
+    throw new UnsupportedOperationException("POS checkout chưa được hỗ trợ trong phạm vi hiện tại");
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<OrderResponse> getMyOrders(UUID currentUserId) {
-    return invoiceRepository.findByCustomer_UserIdOrderByCreatedAtDesc(currentUserId).stream()
-        .filter(inv -> "SHOP".equals(inv.getType()))
+    return invoiceRepository.findByCustomer_User_IdOrderByCreatedAtDesc(currentUserId).stream()
+        .filter(invoice -> "SHOP".equals(invoice.getType()))
         .map(this::mapToResponse)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   @Override
   @Transactional(readOnly = true)
-  public OrderResponse getOrderById(UUID id, UUID currentUserId) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+  public OrderResponse getOrderById(UUID invoiceId, UUID currentUserId) {
+    Invoice invoice = requireInvoice(invoiceId);
 
-    if (invoice.getCustomer().getUserId() != null
-        && !invoice.getCustomer().getUserId().equals(currentUserId)) {
-      throw new RuntimeException("Access denied");
-    }
+    requireOrderOwner(invoice, currentUserId);
 
     return mapToResponse(invoice);
   }
 
   @Override
   @Transactional(readOnly = true)
-  public List<OrderResponse> getPosHistory(java.time.Instant startDate, java.time.Instant endDate) {
+  public List<OrderResponse> getPosHistory(Instant startDate, Instant endDate) {
     return invoiceRepository
         .findByTypeAndStatusAndPaidAtBetweenOrderByPaidAtDesc("SHOP", "PAID", startDate, endDate)
         .stream()
         .map(this::mapToResponse)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<OrderResponse> getAllShopOrders() {
-    // Return only online shop orders (starting with ORD-)
     return invoiceRepository.findAll().stream()
-        .filter(inv -> "SHOP".equals(inv.getType()))
-        .filter(inv -> inv.getInvoiceCode() != null && inv.getInvoiceCode().startsWith("ORD-"))
-        .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+        .filter(invoice -> "SHOP".equals(invoice.getType()))
+        .filter(
+            invoice ->
+                invoice.getInvoiceCode() != null && invoice.getInvoiceCode().startsWith("ORD-"))
+        .sorted((first, second) -> second.getCreatedAt().compareTo(first.getCreatedAt()))
         .map(this::mapToResponse)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   @Override
   @Transactional
-  public OrderResponse updateOrderStatus(UUID id, String newStatus) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+  public OrderResponse updateOrderStatus(UUID invoiceId, String newStatus) {
+    Invoice invoice = requireInvoice(invoiceId);
 
-    if (!"SHOP".equals(invoice.getType())) {
-      throw new RuntimeException("Only SHOP orders can be updated here");
-    }
+    requireShopInvoice(invoice);
 
     invoice.setStatus(newStatus);
-    invoice = invoiceRepository.save(invoice);
 
-    if ("DELIVERED".equals(newStatus)
-        && invoice.getCustomer() != null
-        && invoice.getCustomer().getUserId() != null) {
-      loyaltyService.earnPoints(
-          invoice.getCustomer().getUserId(), invoice.getTotalAmount(), invoice.getId());
+    Invoice savedInvoice = invoiceRepository.save(invoice);
+
+    UUID ownerUserId = getCustomerUserId(savedInvoice);
+
+    if ("DELIVERED".equals(newStatus) && ownerUserId != null) {
+      loyaltyService.earnPoints(ownerUserId, savedInvoice.getTotalAmount(), savedInvoice.getId());
     }
 
-    if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
-      String statusStr =
-          switch (newStatus) {
-            case "CONFIRMED" -> "đã được xác nhận";
-            case "SHIPPING" -> "đang được giao";
-            case "DELIVERED" -> "đã giao thành công";
-            case "CANCELLED" -> "đã bị hủy";
-            default -> "được cập nhật trạng thái";
-          };
-      notificationService.createNotification(
-          invoice.getCustomer().getUserId(),
-          "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
-          "Đơn hàng của bạn " + statusStr + ".",
-          "/profile/orders?orderId=" + invoice.getId());
+    if (ownerUserId != null) {
+      sendOrderStatusNotification(savedInvoice, ownerUserId, newStatus);
     }
 
-    return mapToResponse(invoice);
+    return mapToResponse(savedInvoice);
   }
 
   @Override
   @Transactional
-  public OrderResponse cancelRequest(
-      UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.CancelRequestReq req) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+  public OrderResponse cancelRequest(UUID invoiceId, UUID currentUserId, CancelRequestReq request) {
+    Invoice invoice = requireInvoice(invoiceId);
+
+    requireOrderOwner(invoice, currentUserId);
 
     if ("DELIVERED".equals(invoice.getStatus()) || "CANCELLED".equals(invoice.getStatus())) {
-      throw new RuntimeException("Cannot cancel an order that is already delivered or cancelled");
+      throw new IllegalStateException("Không thể hủy đơn đã giao hoặc đã hủy");
     }
 
-    String note = invoice.getNote() != null ? invoice.getNote() : "";
-    note = note + " | [CANCEL_REQUEST]: " + req.getReason();
-    if (note.length() > 500) {
-      note = note.substring(0, 497) + "...";
-    }
-    invoice.setNote(note);
+    String currentNote = invoice.getNote() == null ? "" : invoice.getNote();
 
-    invoice = invoiceRepository.save(invoice);
-    return mapToResponse(invoice);
+    String newNote = currentNote + " | [CANCEL_REQUEST]: " + normalizeText(request.getReason());
+
+    invoice.setNote(truncateNote(newNote));
+
+    Invoice savedInvoice = invoiceRepository.save(invoice);
+
+    return mapToResponse(savedInvoice);
   }
 
   @Override
   @Transactional
-  public OrderResponse processCancelRequest(
-      UUID id, com.graduation.project.clinic.dto.req.ProcessCancelReq req) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+  public OrderResponse processCancelRequest(UUID invoiceId, ProcessCancelReq request) {
+    Invoice invoice = requireInvoice(invoiceId);
 
-    if (!"SHOP".equals(invoice.getType())) {
-      throw new RuntimeException("Only SHOP orders can be updated here");
-    }
+    requireShopInvoice(invoice);
 
-    if (req.getAccept()) {
+    if (Boolean.TRUE.equals(request.getAccept())) {
       invoice.setStatus("CANCELLED");
     } else {
-      // Reject cancellation, remove the tag from note
-      String note = invoice.getNote();
-      if (note != null && note.contains("| [CANCEL_REQUEST]:")) {
-        int idx = note.indexOf("| [CANCEL_REQUEST]:");
-        note = note.substring(0, idx).trim();
-        invoice.setNote(note);
-      }
+      removeCancellationRequest(invoice);
     }
 
-    invoice = invoiceRepository.save(invoice);
+    Invoice savedInvoice = invoiceRepository.save(invoice);
 
-    if (invoice.getCustomer() != null && invoice.getCustomer().getUserId() != null) {
-      String msg =
-          req.getAccept()
+    UUID ownerUserId = getCustomerUserId(savedInvoice);
+
+    if (ownerUserId != null) {
+      String message =
+          Boolean.TRUE.equals(request.getAccept())
               ? "Yêu cầu hủy đơn hàng của bạn đã được chấp nhận."
               : "Yêu cầu hủy đơn hàng của bạn đã bị từ chối.";
+
       notificationService.createNotification(
-          invoice.getCustomer().getUserId(),
-          "Phản hồi yêu cầu hủy đơn " + invoice.getInvoiceCode(),
-          msg,
-          "/profile/orders?orderId=" + invoice.getId());
+          ownerUserId,
+          "Phản hồi yêu cầu hủy đơn " + savedInvoice.getInvoiceCode(),
+          message,
+          "/profile/orders?orderId=" + savedInvoice.getId());
     }
-    return mapToResponse(invoice);
+
+    return mapToResponse(savedInvoice);
   }
 
   @Override
   @Transactional
-  public OrderResponse reviewOrder(
-      UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.ReviewOrderReq req) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+  public OrderResponse reviewOrder(UUID invoiceId, UUID currentUserId, ReviewOrderReq request) {
+    Invoice invoice = requireInvoice(invoiceId);
 
-    if (invoice.getCustomer().getUserId() != null
-        && !invoice.getCustomer().getUserId().equals(currentUserId)) {
-      throw new RuntimeException("Access denied");
-    }
+    requireOrderOwner(invoice, currentUserId);
 
     if (!"DELIVERED".equals(invoice.getStatus())) {
-      throw new RuntimeException("Chỉ có thể đánh giá đơn hàng đã giao thành công");
+      throw new IllegalStateException("Chỉ có thể đánh giá đơn hàng đã giao thành công");
     }
 
     if (Boolean.TRUE.equals(invoice.getIsReviewed())) {
-      throw new RuntimeException("Đơn hàng này đã được đánh giá");
+      throw new IllegalStateException("Đơn hàng này đã được đánh giá");
     }
 
     invoice.setIsReviewed(true);
-    invoice = invoiceRepository.save(invoice);
 
-    for (com.graduation.project.clinic.dto.req.ReviewProductReq reviewReq : req.getReviews()) {
-      com.graduation.project.product.entity.Product product =
-          productRepository
-              .findById(reviewReq.getProductId())
-              .orElseThrow(
-                  () -> new RuntimeException("Product not found: " + reviewReq.getProductId()));
+    Invoice savedInvoice = invoiceRepository.save(invoice);
 
-      com.graduation.project.clinic.entity.InvoiceReview review =
-          com.graduation.project.clinic.entity.InvoiceReview.builder()
-              .invoice(invoice)
-              .customer(invoice.getCustomer())
-              .product(product)
-              .rating(reviewReq.getRating())
-              .comment(reviewReq.getComment())
-              .build();
-      invoiceReviewRepository.save(review);
-
-      // Cập nhật rating và review_count vào db (Product)
-      List<com.graduation.project.clinic.entity.InvoiceReview> allReviews =
-          invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(product.getSlug());
-      int newReviewCount = allReviews.size();
-      double newRating =
-          allReviews.stream()
-              .mapToInt(com.graduation.project.clinic.entity.InvoiceReview::getRating)
-              .average()
-              .orElse(5.0);
-
-      product.setReviewCount(newReviewCount);
-      product.setRating(java.math.BigDecimal.valueOf(newRating));
-      productRepository.save(product);
+    for (ReviewProductReq reviewRequest : request.getReviews()) {
+      saveProductReview(savedInvoice, reviewRequest);
     }
 
     loyaltyService.addPoints(
-        currentUserId, 50, "Đánh giá đơn hàng " + invoice.getInvoiceCode(), invoice.getId());
+        currentUserId,
+        50,
+        "Đánh giá đơn hàng " + savedInvoice.getInvoiceCode(),
+        savedInvoice.getId());
 
-    return mapToResponse(invoice);
+    return mapToResponse(savedInvoice);
+  }
+
+  private User requireUser(UUID userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản"));
+  }
+
+  private Customer createCustomer(User account) {
+    Customer customer = Customer.builder().user(account).build();
+
+    return customerRepository.save(customer);
+  }
+
+  private Invoice requireInvoice(UUID invoiceId) {
+    return invoiceRepository
+        .findById(invoiceId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng"));
+  }
+
+  private void requireShopInvoice(Invoice invoice) {
+    if (!"SHOP".equals(invoice.getType())) {
+      throw new IllegalArgumentException("Chỉ đơn hàng SHOP được phép xử lý");
+    }
+  }
+
+  private void requireOrderOwner(Invoice invoice, UUID currentUserId) {
+    UUID ownerUserId = getCustomerUserId(invoice);
+
+    if (ownerUserId == null || !ownerUserId.equals(currentUserId)) {
+      throw new SecurityException("Bạn không có quyền truy cập đơn hàng");
+    }
+  }
+
+  private UUID getCustomerUserId(Invoice invoice) {
+    if (invoice.getCustomer() == null || invoice.getCustomer().getUser() == null) {
+      return null;
+    }
+
+    return invoice.getCustomer().getUser().getId();
+  }
+
+  private String buildShippingAddress(CheckoutRequest request) {
+    return String.join(
+        ", ",
+        normalizeText(request.getSpecificAddress()),
+        normalizeText(request.getDistrict()),
+        normalizeText(request.getCity()));
+  }
+
+  private String buildOrderNote(String shippingAddress, String phone, String customerNote) {
+    String note =
+        "Shipping Address: "
+            + shippingAddress
+            + " | Phone: "
+            + normalizeText(phone)
+            + " | Note: "
+            + normalizeText(customerNote);
+
+    return truncateNote(note);
+  }
+
+  private String truncateNote(String value) {
+    if (value.length() <= MAX_NOTE_LENGTH) {
+      return value;
+    }
+
+    return value.substring(0, MAX_NOTE_LENGTH - 3) + "...";
+  }
+
+  private String normalizeText(String value) {
+    return value == null ? "" : value.trim();
+  }
+
+  private String normalizePaymentMethod(String paymentMethod) {
+    return "COD".equals(paymentMethod) ? "CASH" : paymentMethod;
+  }
+
+  private BigDecimal addOrderItems(Invoice invoice, List<CheckoutRequest.CartItemReq> requests) {
+    BigDecimal subtotal = BigDecimal.ZERO;
+
+    for (CheckoutRequest.CartItemReq itemRequest : requests) {
+      Product product =
+          productRepository
+              .findById(itemRequest.getProductId())
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+      InvoiceItem item = new InvoiceItem();
+      item.setInvoice(invoice);
+      item.setProduct(product);
+      item.setNameSnapshot(product.getName());
+      item.setQuantity(BigDecimal.valueOf(itemRequest.getQuantity()));
+      item.setUnitPrice(product.getPrice());
+
+      BigDecimal itemTotal = product.getPrice().multiply(item.getQuantity());
+
+      item.setTotal(itemTotal);
+      invoice.getItems().add(item);
+
+      subtotal = subtotal.add(itemTotal);
+    }
+
+    return subtotal;
+  }
+
+  private BigDecimal applyVoucher(UUID currentUserId, UUID userVoucherId, BigDecimal subtotal) {
+    if (userVoucherId == null) {
+      return BigDecimal.ZERO;
+    }
+
+    UserVoucher userVoucher =
+        userVoucherRepository
+            .findById(userVoucherId)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy voucher"));
+
+    if (Boolean.TRUE.equals(userVoucher.getIsUsed())) {
+      throw new IllegalStateException("Voucher đã được sử dụng");
+    }
+
+    if (userVoucher.getUser() == null || !userVoucher.getUser().getId().equals(currentUserId)) {
+      throw new SecurityException("Voucher không thuộc tài khoản hiện tại");
+    }
+
+    Voucher voucher = userVoucher.getVoucher();
+
+    if (voucher.getMinOrderAmount() != null
+        && subtotal.compareTo(voucher.getMinOrderAmount()) < 0) {
+      throw new IllegalStateException("Đơn hàng chưa đạt giá trị tối thiểu");
+    }
+
+    BigDecimal discount;
+
+    if (voucher.getDiscountType() == DiscountType.FIXED) {
+      discount = voucher.getDiscountValue();
+    } else {
+      discount = subtotal.multiply(voucher.getDiscountValue()).divide(BigDecimal.valueOf(100));
+
+      if (voucher.getMaxDiscount() != null && discount.compareTo(voucher.getMaxDiscount()) > 0) {
+        discount = voucher.getMaxDiscount();
+      }
+    }
+
+    userVoucher.setIsUsed(true);
+    userVoucher.setUsedAt(LocalDateTime.now());
+
+    userVoucherRepository.save(userVoucher);
+
+    return discount.min(subtotal);
+  }
+
+  private void sendNewOrderEvent(Invoice invoice) {
+    messagingTemplate.convertAndSend(
+        "/topic/shop-orders",
+        Map.of(
+            "type",
+            "NEW_ORDER",
+            "orderId",
+            invoice.getId().toString(),
+            "orderCode",
+            invoice.getInvoiceCode(),
+            "totalAmount",
+            invoice.getTotalAmount().toString()));
+  }
+
+  private void sendOrderStatusNotification(Invoice invoice, UUID ownerUserId, String newStatus) {
+    String statusText =
+        switch (newStatus) {
+          case "CONFIRMED" -> "đã được xác nhận";
+          case "SHIPPING" -> "đang được giao";
+          case "DELIVERED" -> "đã giao thành công";
+          case "CANCELLED" -> "đã bị hủy";
+          default -> "được cập nhật trạng thái";
+        };
+
+    notificationService.createNotification(
+        ownerUserId,
+        "Cập nhật đơn hàng " + invoice.getInvoiceCode(),
+        "Đơn hàng của bạn " + statusText + ".",
+        "/profile/orders?orderId=" + invoice.getId());
+  }
+
+  private void removeCancellationRequest(Invoice invoice) {
+    String note = invoice.getNote();
+
+    if (note == null || !note.contains("| [CANCEL_REQUEST]:")) {
+      return;
+    }
+
+    int markerIndex = note.indexOf("| [CANCEL_REQUEST]:");
+
+    invoice.setNote(note.substring(0, markerIndex).trim());
+  }
+
+  private void saveProductReview(Invoice invoice, ReviewProductReq request) {
+    Product product =
+        productRepository
+            .findById(request.getProductId())
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "Không tìm thấy sản phẩm: " + request.getProductId()));
+
+    InvoiceReview review =
+        InvoiceReview.builder()
+            .invoice(invoice)
+            .customer(invoice.getCustomer())
+            .product(product)
+            .rating(request.getRating())
+            .comment(request.getComment())
+            .build();
+
+    invoiceReviewRepository.save(review);
+
+    List<InvoiceReview> reviews =
+        invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(product.getSlug());
+
+    int reviewCount = reviews.size();
+
+    double averageRating =
+        reviews.stream().mapToInt(InvoiceReview::getRating).average().orElse(5.0);
+
+    product.setReviewCount(reviewCount);
+    product.setRating(BigDecimal.valueOf(averageRating));
+
+    productRepository.save(product);
   }
 
   private OrderResponse mapToResponse(Invoice invoice) {
-    String feStatus =
-        switch (invoice.getStatus()) {
-          case "DRAFT" -> "PENDING";
-          case "CONFIRMED" -> "CONFIRMED";
-          case "SHIPPING" -> "SHIPPING";
-          case "DELIVERED" -> "DELIVERED";
-          case "PAID" -> "DELIVERED"; // POS orders usually PAID immediately, map to DELIVERED
-          case "CANCELLED" -> "CANCELLED";
-          default -> "PENDING";
-        };
+    String frontendStatus = mapFrontendStatus(invoice.getStatus());
 
-    List<OrderItemResponse> itemResponses =
+    List<OrderItemResponse> items =
         invoice.getItems().stream()
             .map(
                 item ->
                     OrderItemResponse.builder()
                         .id(item.getId())
-                        .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                        .productId(item.getProduct() == null ? null : item.getProduct().getId())
                         .productName(item.getNameSnapshot())
                         .productImage(
-                            item.getProduct() != null ? item.getProduct().getImageUrl() : null)
+                            item.getProduct() == null ? null : item.getProduct().getImageUrl())
                         .price(item.getUnitPrice())
                         .quantity(item.getQuantity().intValue())
                         .build())
-            .collect(Collectors.toList());
+            .toList();
 
-    String fePaymentMethod = invoice.getPaymentMethod();
-    if ("CASH".equals(fePaymentMethod)) {
-      fePaymentMethod = "COD";
-    }
+    String paymentMethod =
+        "CASH".equals(invoice.getPaymentMethod()) ? "COD" : invoice.getPaymentMethod();
+
+    User account = invoice.getCustomer() == null ? null : invoice.getCustomer().getUser();
 
     return OrderResponse.builder()
         .id(invoice.getId())
         .code(invoice.getInvoiceCode())
-        .status(feStatus)
+        .status(frontendStatus)
         .totalAmount(invoice.getSubtotal())
         .discountAmount(invoice.getDiscountAmount())
         .shippingFee(BigDecimal.ZERO)
         .finalAmount(invoice.getTotalAmount())
         .createdAt(invoice.getCreatedAt())
         .updatedAt(invoice.getUpdatedAt())
-        .paymentMethod(fePaymentMethod)
-        .shippingAddress(invoice.getCustomer().getAddress())
+        .paymentMethod(paymentMethod)
+        .shippingAddress(account == null ? null : account.getAddress())
         .note(invoice.getNote())
-        .customerName(invoice.getCustomer().getFullName())
-        .customerPhone(invoice.getCustomer().getPhone())
+        .customerName(account == null ? null : account.getFullName())
+        .customerPhone(account == null ? null : account.getPhone())
         .isReviewed(invoice.getIsReviewed())
-        .items(itemResponses)
+        .items(items)
         .build();
+  }
+
+  private String mapFrontendStatus(String status) {
+    return switch (status) {
+      case "DRAFT" -> "PENDING";
+      case "CONFIRMED" -> "CONFIRMED";
+      case "SHIPPING" -> "SHIPPING";
+      case "DELIVERED", "PAID" -> "DELIVERED";
+      case "CANCELLED" -> "CANCELLED";
+      default -> "PENDING";
+    };
   }
 }

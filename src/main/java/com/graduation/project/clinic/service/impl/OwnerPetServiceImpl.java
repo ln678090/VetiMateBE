@@ -85,7 +85,7 @@ public class OwnerPetServiceImpl implements OwnerPetService {
 
   private Customer requireOwnerCustomer(UUID currentUserId) {
     return customerRepository
-        .findByUserId(currentUserId)
+        .findByUser_Id(currentUserId)
         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ khách hàng"));
   }
 

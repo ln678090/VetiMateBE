@@ -221,8 +221,10 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
     return ClinicInvoiceDto.builder()
         .id(invoice.getId())
         .invoiceCode(invoice.getInvoiceCode())
-        .customerName(invoice.getCustomer() != null ? invoice.getCustomer().getFullName() : null)
-        .customerPhone(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : null)
+        .customerName(
+            invoice.getCustomer() != null ? invoice.getCustomer().getUser().getFullName() : null)
+        .customerPhone(
+            invoice.getCustomer() != null ? invoice.getCustomer().getUser().getPhone() : null)
         .petName(invoice.getPet() != null ? invoice.getPet().getName() : null)
         .type(invoice.getType())
         .status(invoice.getStatus())
