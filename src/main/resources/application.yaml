@@ -37,5 +37,15 @@ refresh-token:
 app:
   cors:
     allowed-origins: "${CORS_ALLOWED_ORIGINS}"
+
+  zalo-reminder:
+    gateway-base-url: ${ZALO_API_BASE_URL:http://localhost:3000}
+    public-app-url: ${PUBLIC_APP_URL}
+    daily-limit: ${ZALO_DAILY_LIMIT:50}
+    minimum-interval: ${ZALO_MIN_INTERVAL:90s}
+    http-timeout: ${ZALO_HTTP_TIMEOUT:15s}
+    timezone: ${REMINDER_TIMEZONE:Asia/Ho_Chi_Minh}
+    scheduler-delay: ${ZALO_SCHEDULER_DELAY:10s}
+
 cloudinary:
   url: ${CLOUDINARY_URL:cloudinary://demo:demo@demo}

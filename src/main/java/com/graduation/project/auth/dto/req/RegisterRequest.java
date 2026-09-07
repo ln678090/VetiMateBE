@@ -19,4 +19,7 @@ public record RegisterRequest(
         String password,
     @NotBlank(message = "username không được để trống")
         @Size(min = 6, message = "username phải từ 6 ký tự trở lên")
-        String username) {}
+        String username,
+    @NotBlank(message = "Địa chỉ không được để trống")
+        @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
+        String address) {}

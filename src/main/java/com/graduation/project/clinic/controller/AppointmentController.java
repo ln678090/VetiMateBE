@@ -44,6 +44,27 @@ public class AppointmentController {
     return ApiResp.builder().data(slots).build(); // dùng đúng factory ApiResp của bạn
   }
 
+  @GetMapping("/{id}/available-slots")
+  public ApiResp<Object> getAvailableSlots1(
+      @PathVariable("id") UUID serviceId,
+      @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+    List<AvailableSlotResponse> slots = appointmentService.getAvailableSlots(serviceId, date);
+    return ApiResp.builder().data(slots).build(); // dùng đúng factory ApiResp của bạn
+  }
+
+  @PostMapping("/management")
+  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_RECEPTIONIST')")
+  public ApiResp<AppointmentDto> createForManagement(
+      @Valid @RequestBody CreateAppointmentRequest request) {
+    AppointmentDto appointment = appointmentService.create(request);
+
+    return ApiResp.<AppointmentDto>builder()
+        .message("Tạo lịch hẹn thành công")
+        .data(appointment)
+        .build();
+  }
+
   @PostMapping
   public ResponseEntity<ApiResp<AppointmentDto>> create(
       @Valid @RequestBody CreateAppointmentRequest request) {

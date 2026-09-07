@@ -14,6 +14,7 @@ import com.graduation.project.clinic.repository.ClinicServiceRepository;
 import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.clinic.service.AppointmentService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
+import com.graduation.project.notification.reminder.AppointmentReminderService;
 import com.graduation.project.notification.service.NotificationService;
 import com.graduation.project.user.repository.UserRepository;
 import java.time.Instant;
@@ -36,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
-
+  private final AppointmentReminderService appointmentReminderService;
   private static final LocalTime WORK_START = LocalTime.of(8, 0);
 
   private static final LocalTime WORK_END = LocalTime.of(17, 0);
@@ -155,12 +156,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     validateWorkingHours(startAt, endAt);
 
-    /*
-     * Kiểm tra nhanh để trả thông báo dễ hiểu.
-     *
-     * Đây không phải lớp bảo vệ cuối cùng vì hai request
-     * đồng thời vẫn có thể cùng vượt qua câu kiểm tra này.
-     */
     if (appointmentRepository.existsOverlap(
         service.getId(), startAt, endAt, AppointmentStatus.CANCELLED)) {
       throw new IllegalStateException(
@@ -184,10 +179,6 @@ public class AppointmentServiceImpl implements AppointmentService {
     Appointment savedAppointment;
 
     try {
-      /*
-       * saveAndFlush buộc PostgreSQL kiểm tra exclusion
-       * constraint ngay trong method này.
-       */
       savedAppointment = appointmentRepository.saveAndFlush(appointment);
     } catch (DataIntegrityViolationException exception) {
       if (isAppointmentOverlapViolation(exception)) {
@@ -200,10 +191,17 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     /*
-     * Notification được lưu trong cùng transaction.
-     * Nếu transaction đặt lịch rollback thì notification
-     * cũng không tồn tại.
+     * Tự tạo reminder Zalo cho appointment.
+     * Gửi trước giờ khám 24 tiếng; nếu lịch gần hơn
+     * 24 tiếng thì scheduler gửi ngay khi còn quota.
      */
+    appointmentReminderService.schedule(
+        savedAppointment.getId(),
+        savedAppointment.getCustomer().getId(),
+        savedAppointment.getPet().getId(),
+        savedAppointment.getPet().getName(),
+        savedAppointment.getStartAt());
+
     notifyAppointmentOwner(savedAppointment);
     notifyReceptionists(savedAppointment);
 

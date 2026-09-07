@@ -182,6 +182,7 @@ public class AuthServiceImpl implements AuthService {
             .password(passwordEncoder.encode(request.password()))
             .fullName(request.fullName())
             .username(request.username())
+            .address(request.address())
             .phone(request.phone())
             .enabled(Boolean.TRUE)
             .createdAt(OffsetDateTime.now())
