@@ -14,4 +14,6 @@ public class OrderItemResponse {
   private String productImage;
   private BigDecimal price;
   private Integer quantity;
+  private Integer stockQuantity;
+  private Boolean isActive;
 }

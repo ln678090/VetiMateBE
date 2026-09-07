@@ -20,33 +20,42 @@ public class NotificationController {
 
   private final NotificationService notificationService;
 
+  private UUID getTargetUserId(Authentication auth) {
+    if (auth.getAuthorities().stream()
+        .anyMatch(
+            a ->
+                a.getAuthority().equals("ROLE_SHOP_STAFF")
+                    || a.getAuthority().equals("ROLE_ADMIN")
+                    || a.getAuthority().equals("ROLE_MANAGER"))) {
+      return null;
+    }
+    return SecurityUtils.currentUserId(auth);
+  }
+
   @GetMapping
   public List<NotificationDto> getNotifications(Authentication authentication) {
-    UUID userId = SecurityUtils.currentUserId(authentication);
-
+    UUID userId = getTargetUserId(authentication);
     return notificationService.getUserNotifications(userId);
   }
 
   @GetMapping("/unread-count")
   public UnreadNotificationCountDto getUnreadCount(Authentication authentication) {
-    UUID userId = SecurityUtils.currentUserId(authentication);
-
+    UUID userId = getTargetUserId(authentication);
     return new UnreadNotificationCountDto(notificationService.getUnreadCount(userId));
   }
 
   @PatchMapping("/{notificationId}/read")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void markAsRead(@PathVariable UUID notificationId, Authentication authentication) {
-    UUID userId = SecurityUtils.currentUserId(authentication);
-
+  public void markAsRead(
+      @PathVariable("notificationId") UUID notificationId, Authentication authentication) {
+    UUID userId = getTargetUserId(authentication);
     notificationService.markAsRead(notificationId, userId);
   }
 
   @PatchMapping("/read-all")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void markAllAsRead(Authentication authentication) {
-    UUID userId = SecurityUtils.currentUserId(authentication);
-
+    UUID userId = getTargetUserId(authentication);
     notificationService.markAllAsRead(userId);
   }
 }

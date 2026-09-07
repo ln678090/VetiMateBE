@@ -181,9 +181,17 @@ public class LoyaltyServiceImpl implements LoyaltyService {
       throw new IllegalArgumentException("Voucher usage limit reached");
     }
 
-    // Check if user already redeemed it (if we want to limit 1 per user, wait, let's just allow
-    // multiple if they have points, unless specified. I will not limit for now, or maybe I should?)
-    // Let's not limit for now, just check points.
+    // Check if user already has an active (unused & not expired) voucher of this type
+    boolean hasActiveVoucher =
+        userVoucherRepository.findAllByUserIdAndVoucherId(userId, voucherId).stream()
+            .anyMatch(
+                uv ->
+                    !uv.getIsUsed()
+                        && (uv.getVoucher().getEndDate() == null
+                            || !uv.getVoucher().getEndDate().isBefore(now)));
+    if (hasActiveVoucher) {
+      throw new IllegalArgumentException("Bạn đã đổi voucher này rồi");
+    }
 
     UserLoyaltyPoints points =
         pointsRepository

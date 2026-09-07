@@ -47,6 +47,10 @@ public class StockVoucherItem {
   @JoinColumn(name = "product_id")
   private Product product;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "supplier_id")
+  private Supplier supplier;
+
   @Column(nullable = false, precision = 10, scale = 2)
   private BigDecimal quantity;
 

@@ -20,7 +20,7 @@ public interface OrderService {
 
   List<OrderResponse> getAllShopOrders();
 
-  OrderResponse updateOrderStatus(UUID id, String newStatus);
+  OrderResponse updateOrderStatus(UUID id, String newStatus, String cancelReason);
 
   OrderResponse cancelRequest(
       UUID id, UUID currentUserId, com.graduation.project.clinic.dto.req.CancelRequestReq req);

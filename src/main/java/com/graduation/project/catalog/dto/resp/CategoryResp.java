@@ -9,4 +9,5 @@ public record CategoryResp(
     String description,
     String icon,
     UUID parentId,
-    Integer sortOrder) {}
+    Integer sortOrder,
+    Boolean isActive) {}
