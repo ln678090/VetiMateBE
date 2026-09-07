@@ -20,8 +20,7 @@ public interface CatalogMapper {
   List<BrandResp> toBrandRespList(List<Brand> brands);
 
   /**
-   * Tree mapping — children sẽ được map đệ quy tự động bởi MapStruct. Lưu ý: chỉ
-   * truyền vào list đã
+   * Tree mapping — children sẽ được map đệ quy tự động bởi MapStruct. Lưu ý: chỉ truyền vào list đã
    * được lọc children theo parent.
    */
   @Mapping(target = "children", source = "children")

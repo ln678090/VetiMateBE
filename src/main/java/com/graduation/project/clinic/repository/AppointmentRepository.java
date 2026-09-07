@@ -16,10 +16,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
-  @EntityGraph(attributePaths = {
-      "service"
-  })
-  @Query("""
+  @EntityGraph(attributePaths = {"service"})
+  @Query(
+      """
       SELECT appointment
       FROM Appointment appointment
       WHERE appointment.pet.id = :petId
@@ -27,12 +26,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       ORDER BY appointment.startAt DESC
       """)
   List<Appointment> findOwnerPetAppointments(
-      @Param("petId") UUID petId,
-      @Param("customerId") UUID customerId,
-      Pageable pageable);
+      @Param("petId") UUID petId, @Param("customerId") UUID customerId, Pageable pageable);
 
   // JOIN FETCH đầy đủ customer + pet + service để flatten ra DTO (chống N+1)
-  @Query("""
+  @Query(
+      """
       SELECT a FROM Appointment a
       JOIN FETCH a.customer
       JOIN FETCH a.pet
@@ -41,21 +39,25 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       """)
   Optional<Appointment> findByIdFull(@Param("id") UUID id);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT a FROM Appointment a
       JOIN FETCH a.customer
       JOIN FETCH a.pet
       JOIN FETCH a.service
       WHERE a.customer.id = :customerId
       ORDER BY a.startAt DESC
-      """, countQuery = "SELECT COUNT(a) FROM Appointment a WHERE a.customer.id = :customerId")
+      """,
+      countQuery = "SELECT COUNT(a) FROM Appointment a WHERE a.customer.id = :customerId")
   Page<Appointment> findByCustomerIdFull(@Param("customerId") UUID customerId, Pageable pageable);
 
   // Chống trùng giờ: có lịch nào của cùng service giao khoảng [startAt, endAt)
   // không?
   // Loại trừ trạng thái CANCELLED. Overlap khi: existing.startAt < newEnd AND
   // existing.endAt > newStart
-  @Query("""
+  @Query(
+      """
       SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
       FROM Appointment a
       WHERE a.service.id = :serviceId
@@ -69,7 +71,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("newEnd") Instant newEnd,
       @Param("cancelled") AppointmentStatus cancelled);
 
-  @Query("""
+  @Query(
+      """
       SELECT a FROM Appointment a
       WHERE a.startAt < :dayEnd AND a.endAt > :dayStart
         AND a.status IN (
@@ -78,14 +81,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       """)
   List<Appointment> findActiveBetween(Instant dayStart, Instant dayEnd);
 
-  @Query("SELECT a FROM Appointment a WHERE a.service.id = :serviceId "
-      + "AND a.startAt >= :start AND a.startAt < :end "
-      + "AND a.status NOT IN ('CANCELLED', 'NO_SHOW')")
+  @Query(
+      "SELECT a FROM Appointment a WHERE a.service.id = :serviceId "
+          + "AND a.startAt >= :start AND a.startAt < :end "
+          + "AND a.status NOT IN ('CANCELLED', 'NO_SHOW')")
   List<Appointment> findActiveByServiceAndDay(
       @Param("serviceId") UUID serviceId,
       @Param("start") Instant start, // ← Instant
       @Param("end") Instant end // ← Instant
-  );
+      );
 
   // @Query(value = """
   // SELECT appointment
@@ -109,7 +113,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
   // @Param("status") AppointmentStatus status,
   // Pageable pageable);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT appointment
       FROM Appointment appointment
       JOIN FETCH appointment.customer
@@ -118,7 +124,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       WHERE appointment.startAt >= :startAt
         AND appointment.startAt < :endAt
         AND (:status IS NULL OR appointment.status = :status)
-      """, countQuery = """
+      """,
+      countQuery =
+          """
       SELECT COUNT(appointment)
       FROM Appointment appointment
       WHERE appointment.startAt >= :startAt
@@ -132,8 +140,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       Pageable pageable);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @EntityGraph(attributePaths = { "customer", "pet", "service" })
-  @Query("""
+  @EntityGraph(attributePaths = {"customer", "pet", "service"})
+  @Query(
+      """
       SELECT appointment
       FROM Appointment appointment
       WHERE appointment.id = :appointmentId

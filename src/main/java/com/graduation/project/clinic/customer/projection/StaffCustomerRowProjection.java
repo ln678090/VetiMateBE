@@ -1,4 +1,3 @@
-
 package com.graduation.project.clinic.customer.projection;
 
 import java.time.Instant;

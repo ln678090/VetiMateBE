@@ -2,6 +2,7 @@ package com.graduation.project.clinic.entity;
 
 import com.graduation.project.user.entity.User;
 import com.graduation.project.utils.annotation.UuidV7;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,7 +13,6 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.CascadeType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +44,11 @@ public class Customer {
   @Column(name = "note", length = 500)
   private String note;
 
-  @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  @OneToMany(
+      mappedBy = "customer",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
   @Builder.Default
   private List<Pet> pets = new ArrayList<>();
 

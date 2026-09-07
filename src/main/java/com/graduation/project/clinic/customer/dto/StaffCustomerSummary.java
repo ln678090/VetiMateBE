@@ -1,4 +1,3 @@
-
 package com.graduation.project.clinic.customer.dto;
 
 import java.time.Instant;
@@ -11,5 +10,4 @@ public record StaffCustomerSummary(
     String email,
     long petCount,
     String latestAppointmentStatus,
-    Instant latestAppointmentAt) {
-}
+    Instant latestAppointmentAt) {}

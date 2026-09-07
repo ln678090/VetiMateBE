@@ -1,4 +1,3 @@
-
 package com.graduation.project.clinic.examination.dto;
 
 import java.math.BigDecimal;
@@ -7,15 +6,10 @@ import java.util.UUID;
 
 public final class OwnerPetHistoryDtos {
 
-  private OwnerPetHistoryDtos() {
-  }
+  private OwnerPetHistoryDtos() {}
 
   public record AppointmentStatusResponse(
-      UUID appointmentId,
-      String status,
-      Instant startAt,
-      String serviceName) {
-  }
+      UUID appointmentId, String status, Instant startAt, String serviceName) {}
 
   public record VisitHistoryResponse(
       UUID medicalRecordId,
@@ -27,6 +21,5 @@ public final class OwnerPetHistoryDtos {
       String healthStatus,
       BigDecimal weightKg,
       String diagnosis,
-      String treatmentPlan) {
-  }
+      String treatmentPlan) {}
 }

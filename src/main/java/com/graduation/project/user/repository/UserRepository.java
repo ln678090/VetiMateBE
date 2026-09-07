@@ -1,7 +1,6 @@
 package com.graduation.project.user.repository;
 
 import com.graduation.project.user.entity.User;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,19 +18,20 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
   boolean existsByUsername(String username);
 
-  @Query("""
+  @Query(
+      """
       select distinct user.id
       from User user
       join user.roles role
       where role.name = :roleName
       """)
-  List<UUID> findIdsByRoleName(
-      @Param("roleName") String roleName);
+  List<UUID> findIdsByRoleName(@Param("roleName") String roleName);
 
   @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "roles")
   Optional<User> findByEmail(String email);
 
-  @Query("""
+  @Query(
+      """
       select user
       from User user
       where user.enabled = true

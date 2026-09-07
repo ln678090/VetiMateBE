@@ -16,11 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/clinic/staff/customers")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority(" +
-    "'ROLE_RECEPTIONIST'," +
-    "'ROLE_ADMIN'," +
-    "'ROLE_MANAGER'" +
-    ")")
+@PreAuthorize(
+    "hasAnyAuthority(" + "'ROLE_RECEPTIONIST'," + "'ROLE_ADMIN'," + "'ROLE_MANAGER'" + ")")
 public class StaffCustomerController {
 
   private final StaffCustomerQueryService staffCustomerQueryService;
@@ -28,19 +25,13 @@ public class StaffCustomerController {
   @GetMapping
   public ApiResp<Page<StaffCustomerSummary>> search(
       @RequestParam(defaultValue = "") String keyword,
-
       @RequestParam(defaultValue = "ALL") StaffCustomerFilter filter,
-
       Pageable pageable) {
-    Page<StaffCustomerSummary> customers = staffCustomerQueryService.search(
-        keyword,
-        filter,
-        pageable);
+    Page<StaffCustomerSummary> customers =
+        staffCustomerQueryService.search(keyword, filter, pageable);
 
-    return ApiResp
-        .<Page<StaffCustomerSummary>>builder()
-        .message(
-            "Lấy danh sách khách hàng thành công")
+    return ApiResp.<Page<StaffCustomerSummary>>builder()
+        .message("Lấy danh sách khách hàng thành công")
         .data(customers)
         .build();
   }

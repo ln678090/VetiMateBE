@@ -16,15 +16,6 @@ import com.graduation.project.clinic.service.AppointmentService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.notification.service.NotificationService;
 import com.graduation.project.user.repository.UserRepository;
-
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,11 +26,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AppointmentServiceImpl
-    implements AppointmentService {
+public class AppointmentServiceImpl implements AppointmentService {
 
   private static final LocalTime WORK_START = LocalTime.of(8, 0);
 
@@ -62,17 +58,15 @@ public class AppointmentServiceImpl
 
   @Override
   @Transactional(readOnly = true)
-  public List<AvailableSlotResponse> getAvailableSlots(
-      UUID serviceId,
-      LocalDate date) {
+  public List<AvailableSlotResponse> getAvailableSlots(UUID serviceId, LocalDate date) {
     requireId(serviceId, "Service ID");
     requireDate(date);
 
-    ClinicService service = clinicServiceRepository
-        .findById(serviceId)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy dịch vụ: "
-                + serviceId));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(serviceId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Không tìm thấy dịch vụ: " + serviceId));
 
     if (Boolean.FALSE.equals(service.getIsActive())) {
       return List.of();
@@ -80,20 +74,12 @@ public class AppointmentServiceImpl
 
     int durationMin = requireValidDuration(service.getDurationMin());
 
-    Instant startOfDay = date
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant startOfDay = date.atStartOfDay(ZONE).toInstant();
 
-    Instant endOfDay = date
-        .plusDays(1)
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant endOfDay = date.plusDays(1).atStartOfDay(ZONE).toInstant();
 
-    List<Appointment> bookedAppointments = appointmentRepository
-        .findActiveByServiceAndDay(
-            serviceId,
-            startOfDay,
-            endOfDay);
+    List<Appointment> bookedAppointments =
+        appointmentRepository.findActiveByServiceAndDay(serviceId, startOfDay, endOfDay);
 
     Instant now = Instant.now();
 
@@ -101,38 +87,25 @@ public class AppointmentServiceImpl
 
     LocalTime cursor = WORK_START;
 
-    while (!cursor
-        .plusMinutes(durationMin)
-        .isAfter(WORK_END)) {
+    while (!cursor.plusMinutes(durationMin).isAfter(WORK_END)) {
 
       LocalTime slotEndTime = cursor.plusMinutes(durationMin);
 
-      Instant slotStart = LocalDateTime
-          .of(date, cursor)
-          .atZone(ZONE)
-          .toInstant();
+      Instant slotStart = LocalDateTime.of(date, cursor).atZone(ZONE).toInstant();
 
-      Instant slotEnd = LocalDateTime
-          .of(date, slotEndTime)
-          .atZone(ZONE)
-          .toInstant();
+      Instant slotEnd = LocalDateTime.of(date, slotEndTime).atZone(ZONE).toInstant();
 
       boolean isPast = !slotStart.isAfter(now);
 
-      boolean overlaps = bookedAppointments
-          .stream()
-          .anyMatch(appointment -> overlaps(
-              slotStart,
-              slotEnd,
-              appointment.getStartAt(),
-              appointment.getEndAt()));
+      boolean overlaps =
+          bookedAppointments.stream()
+              .anyMatch(
+                  appointment ->
+                      overlaps(
+                          slotStart, slotEnd, appointment.getStartAt(), appointment.getEndAt()));
 
       if (!isPast && !overlaps) {
-        availableSlots.add(
-            new AvailableSlotResponse(
-                cursor,
-                slotEndTime,
-                true));
+        availableSlots.add(new AvailableSlotResponse(cursor, slotEndTime, true));
       }
 
       cursor = slotEndTime;
@@ -143,48 +116,42 @@ public class AppointmentServiceImpl
 
   @Override
   @Transactional
-  public AppointmentDto create(
-      CreateAppointmentRequest request) {
+  public AppointmentDto create(CreateAppointmentRequest request) {
     if (request == null) {
-      throw new IllegalArgumentException(
-          "Thông tin đặt lịch là bắt buộc");
+      throw new IllegalArgumentException("Thông tin đặt lịch là bắt buộc");
     }
 
-    Pet pet = petRepository
-        .findByIdWithCustomer(request.petId())
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy thú cưng: "
-                + request.petId()));
+    Pet pet =
+        petRepository
+            .findByIdWithCustomer(request.petId())
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Không tìm thấy thú cưng: " + request.petId()));
 
-    ClinicService service = clinicServiceRepository
-        .findById(request.serviceId())
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy dịch vụ: "
-                + request.serviceId()));
+    ClinicService service =
+        clinicServiceRepository
+            .findById(request.serviceId())
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "Không tìm thấy dịch vụ: " + request.serviceId()));
 
     if (Boolean.FALSE.equals(service.getIsActive())) {
-      throw new IllegalStateException(
-          "Dịch vụ đã ngừng hoạt động: "
-              + service.getName());
+      throw new IllegalStateException("Dịch vụ đã ngừng hoạt động: " + service.getName());
     }
 
     Instant startAt = request.startAt();
 
     if (startAt == null) {
-      throw new IllegalArgumentException(
-          "Thời gian bắt đầu là bắt buộc");
+      throw new IllegalArgumentException("Thời gian bắt đầu là bắt buộc");
     }
 
     if (!startAt.isAfter(Instant.now())) {
-      throw new IllegalArgumentException(
-          "Không thể đặt lịch trong quá khứ");
+      throw new IllegalArgumentException("Không thể đặt lịch trong quá khứ");
     }
 
     int durationMin = requireValidDuration(service.getDurationMin());
 
-    Instant endAt = startAt.plus(
-        durationMin,
-        ChronoUnit.MINUTES);
+    Instant endAt = startAt.plus(durationMin, ChronoUnit.MINUTES);
 
     validateWorkingHours(startAt, endAt);
 
@@ -195,27 +162,24 @@ public class AppointmentServiceImpl
      * đồng thời vẫn có thể cùng vượt qua câu kiểm tra này.
      */
     if (appointmentRepository.existsOverlap(
-        service.getId(),
-        startAt,
-        endAt,
-        AppointmentStatus.CANCELLED)) {
+        service.getId(), startAt, endAt, AppointmentStatus.CANCELLED)) {
       throw new IllegalStateException(
-          "Khung giờ này đã có người đặt. "
-              + "Vui lòng chọn khung giờ khác.");
+          "Khung giờ này đã có người đặt. " + "Vui lòng chọn khung giờ khác.");
     }
 
-    Appointment appointment = Appointment.builder()
-        .customer(pet.getCustomer())
-        .pet(pet)
-        .service(service)
-        .priceSnapshot(service.getPrice())
-        .durationMin(durationMin)
-        .startAt(startAt)
-        .endAt(endAt)
-        .status(AppointmentStatus.SCHEDULED)
-        .isCalledToConfirm(false)
-        .note(normalizeOptional(request.note()))
-        .build();
+    Appointment appointment =
+        Appointment.builder()
+            .customer(pet.getCustomer())
+            .pet(pet)
+            .service(service)
+            .priceSnapshot(service.getPrice())
+            .durationMin(durationMin)
+            .startAt(startAt)
+            .endAt(endAt)
+            .status(AppointmentStatus.SCHEDULED)
+            .isCalledToConfirm(false)
+            .note(normalizeOptional(request.note()))
+            .build();
 
     Appointment savedAppointment;
 
@@ -224,13 +188,11 @@ public class AppointmentServiceImpl
        * saveAndFlush buộc PostgreSQL kiểm tra exclusion
        * constraint ngay trong method này.
        */
-      savedAppointment = appointmentRepository.saveAndFlush(
-          appointment);
+      savedAppointment = appointmentRepository.saveAndFlush(appointment);
     } catch (DataIntegrityViolationException exception) {
       if (isAppointmentOverlapViolation(exception)) {
         throw new IllegalStateException(
-            "Khung giờ này vừa được người khác đặt. "
-                + "Vui lòng tải lại và chọn giờ khác.",
+            "Khung giờ này vừa được người khác đặt. " + "Vui lòng tải lại và chọn giờ khác.",
             exception);
       }
 
@@ -253,49 +215,41 @@ public class AppointmentServiceImpl
   public AppointmentDto getById(UUID id) {
     requireId(id, "Appointment ID");
 
-    Appointment appointment = appointmentRepository
-        .findByIdFull(id)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch khám: " + id));
 
     return appointmentMapper.toDto(appointment);
   }
 
   @Override
   @Transactional(readOnly = true)
-  public Page<AppointmentDto> getByCustomer(
-      UUID customerId,
-      Pageable pageable) {
+  public Page<AppointmentDto> getByCustomer(UUID customerId, Pageable pageable) {
     requireId(customerId, "Customer ID");
 
     if (pageable == null) {
-      throw new IllegalArgumentException(
-          "Thông tin phân trang là bắt buộc");
+      throw new IllegalArgumentException("Thông tin phân trang là bắt buộc");
     }
 
     return appointmentRepository
-        .findByCustomerIdFull(
-            customerId,
-            pageable)
+        .findByCustomerIdFull(customerId, pageable)
         .map(appointmentMapper::toDto);
   }
 
   @Override
   @Transactional
-  public AppointmentDto updateStatus(
-      UUID id,
-      UpdateAppointmentStatusRequest request) {
+  public AppointmentDto updateStatus(UUID id, UpdateAppointmentStatusRequest request) {
     requireId(id, "Appointment ID");
 
     if (request == null || request.status() == null) {
-      throw new IllegalArgumentException(
-          "Trạng thái lịch hẹn là bắt buộc");
+      throw new IllegalArgumentException("Trạng thái lịch hẹn là bắt buộc");
     }
 
-    Appointment appointment = appointmentRepository
-        .findByIdFull(id)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch khám: " + id));
 
     AppointmentStatus currentStatus = appointment.getStatus();
 
@@ -316,9 +270,7 @@ public class AppointmentServiceImpl
               + "từ quy trình khám bệnh.");
     }
 
-    validateStatusTransition(
-        currentStatus,
-        targetStatus);
+    validateStatusTransition(currentStatus, targetStatus);
 
     appointment.setStatus(targetStatus);
 
@@ -331,194 +283,152 @@ public class AppointmentServiceImpl
 
   @Override
   @Transactional
-  public AppointmentDto updateCallStatus(
-      UUID id,
-      boolean isCalled) {
+  public AppointmentDto updateCallStatus(UUID id, boolean isCalled) {
     requireId(id, "Appointment ID");
 
-    Appointment appointment = appointmentRepository
-        .findByIdFull(id)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy lịch khám: " + id));
+    Appointment appointment =
+        appointmentRepository
+            .findByIdFull(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch khám: " + id));
 
     if (isTerminalStatus(appointment.getStatus())) {
       throw new IllegalStateException(
-          "Không thể cập nhật trạng thái gọi "
-              + "cho lịch đã kết thúc");
+          "Không thể cập nhật trạng thái gọi " + "cho lịch đã kết thúc");
     }
 
     appointment.setIsCalledToConfirm(isCalled);
 
-    return appointmentMapper.toDto(
-        appointmentRepository.save(appointment));
+    return appointmentMapper.toDto(appointmentRepository.save(appointment));
   }
 
   @Override
   @Transactional(readOnly = true)
   public Page<AppointmentDto> getForManagement(
-      LocalDate startDate,
-      LocalDate endDate,
-      AppointmentStatus status,
-      Pageable pageable) {
+      LocalDate startDate, LocalDate endDate, AppointmentStatus status, Pageable pageable) {
     if (pageable == null) {
-      throw new IllegalArgumentException(
-          "Thông tin phân trang là bắt buộc");
+      throw new IllegalArgumentException("Thông tin phân trang là bắt buộc");
     }
 
-    LocalDate resolvedStartDate = startDate != null
-        ? startDate
-        : LocalDate.now(ZONE);
+    LocalDate resolvedStartDate = startDate != null ? startDate : LocalDate.now(ZONE);
 
-    LocalDate resolvedEndDate = endDate != null
-        ? endDate
-        : resolvedStartDate;
+    LocalDate resolvedEndDate = endDate != null ? endDate : resolvedStartDate;
 
     if (resolvedEndDate.isBefore(resolvedStartDate)) {
-      throw new IllegalArgumentException(
-          "Ngày kết thúc không được trước ngày bắt đầu");
+      throw new IllegalArgumentException("Ngày kết thúc không được trước ngày bắt đầu");
     }
 
-    Instant startAt = resolvedStartDate
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant startAt = resolvedStartDate.atStartOfDay(ZONE).toInstant();
 
-    Instant endAt = resolvedEndDate
-        .plusDays(1)
-        .atStartOfDay(ZONE)
-        .toInstant();
+    Instant endAt = resolvedEndDate.plusDays(1).atStartOfDay(ZONE).toInstant();
 
     return appointmentRepository
-        .findForManagement(
-            startAt,
-            endAt,
-            status,
-            pageable)
+        .findForManagement(startAt, endAt, status, pageable)
         .map(appointmentMapper::toDto);
   }
 
-  private void validateWorkingHours(
-      Instant startAt,
-      Instant endAt) {
+  private void validateWorkingHours(Instant startAt, Instant endAt) {
     ZonedDateTime localStart = startAt.atZone(ZONE);
 
     ZonedDateTime localEnd = endAt.atZone(ZONE);
 
-    if (!localStart
-        .toLocalDate()
-        .equals(localEnd.toLocalDate())) {
+    if (!localStart.toLocalDate().equals(localEnd.toLocalDate())) {
       throw new IllegalArgumentException(
-          "Lịch hẹn phải bắt đầu và kết thúc "
-              + "trong cùng một ngày");
+          "Lịch hẹn phải bắt đầu và kết thúc " + "trong cùng một ngày");
     }
 
     LocalTime startTime = localStart.toLocalTime();
 
     LocalTime endTime = localEnd.toLocalTime();
 
-    if (startTime.isBefore(WORK_START)
-        || endTime.isAfter(WORK_END)) {
+    if (startTime.isBefore(WORK_START) || endTime.isAfter(WORK_END)) {
       throw new IllegalArgumentException(
-          "Lịch hẹn phải nằm trong giờ làm việc "
-              + "từ 08:00 đến 17:00");
+          "Lịch hẹn phải nằm trong giờ làm việc " + "từ 08:00 đến 17:00");
     }
   }
 
   private void validateStatusTransition(
-      AppointmentStatus currentStatus,
-      AppointmentStatus targetStatus) {
-    boolean validTransition = switch (currentStatus) {
-      case SCHEDULED ->
-        targetStatus == AppointmentStatus.CONFIRMED
-            || targetStatus == AppointmentStatus.CANCELLED;
+      AppointmentStatus currentStatus, AppointmentStatus targetStatus) {
+    boolean validTransition =
+        switch (currentStatus) {
+          case SCHEDULED ->
+              targetStatus == AppointmentStatus.CONFIRMED
+                  || targetStatus == AppointmentStatus.CANCELLED;
 
-      case CONFIRMED ->
-        targetStatus == AppointmentStatus.CANCELLED
-            || targetStatus == AppointmentStatus.NO_SHOW;
+          case CONFIRMED ->
+              targetStatus == AppointmentStatus.CANCELLED
+                  || targetStatus == AppointmentStatus.NO_SHOW;
 
-      case DONE, CANCELLED, NO_SHOW -> false;
+          case DONE, CANCELLED, NO_SHOW -> false;
 
-      default -> false;
-    };
+          default -> false;
+        };
 
     if (!validTransition) {
       throw new IllegalStateException(
-          "Không thể chuyển lịch hẹn từ "
-              + currentStatus
-              + " sang "
-              + targetStatus);
+          "Không thể chuyển lịch hẹn từ " + currentStatus + " sang " + targetStatus);
     }
   }
 
-  private void notifyAppointmentOwner(
-      Appointment appointment) {
-    UUID ownerUserId = appointment
-        .getCustomer()
-        .getUser()
-        .getId();
+  private void notifyAppointmentOwner(Appointment appointment) {
+    UUID ownerUserId = appointment.getCustomer().getUser().getId();
 
-    String message = "Lịch "
-        + appointment.getService().getName()
-        + " cho "
-        + appointment.getPet().getName()
-        + " đã được ghi nhận.";
+    String message =
+        "Lịch "
+            + appointment.getService().getName()
+            + " cho "
+            + appointment.getPet().getName()
+            + " đã được ghi nhận.";
 
     notificationService.createNotification(
-        ownerUserId,
-        "Đặt lịch thành công",
-        message,
-        ownerAppointmentLink(appointment.getId()));
+        ownerUserId, "Đặt lịch thành công", message, ownerAppointmentLink(appointment.getId()));
   }
 
-  private void notifyReceptionists(
-      Appointment appointment) {
-    List<UUID> receptionistIds = userRepository.findIdsByRoleName(
-        RECEPTIONIST_ROLE);
+  private void notifyReceptionists(Appointment appointment) {
+    List<UUID> receptionistIds = userRepository.findIdsByRoleName(RECEPTIONIST_ROLE);
 
     /*
      * Giới hạn phòng trường hợp dữ liệu role bị gán sai
      * hàng loạt, tránh tạo notification không kiểm soát.
      */
-    receptionistIds
-        .stream()
+    receptionistIds.stream()
         .limit(MAX_RECENT_RECEPTIONISTS)
-        .forEach(receptionistId -> notificationService.createNotification(
-            receptionistId,
-            "Có lịch hẹn mới",
-            buildReceptionistMessage(
-                appointment),
-            managementAppointmentLink(
-                appointment.getId())));
+        .forEach(
+            receptionistId ->
+                notificationService.createNotification(
+                    receptionistId,
+                    "Có lịch hẹn mới",
+                    buildReceptionistMessage(appointment),
+                    managementAppointmentLink(appointment.getId())));
   }
 
-  private void notifyOwnerAboutStatus(
-      Appointment appointment) {
+  private void notifyOwnerAboutStatus(Appointment appointment) {
     String title;
     String message;
 
     switch (appointment.getStatus()) {
       case CONFIRMED -> {
         title = "Lịch hẹn đã được xác nhận";
-        message = "Phòng khám đã xác nhận lịch "
-            + appointment.getService().getName()
-            + " cho "
-            + appointment.getPet().getName()
-            + ".";
+        message =
+            "Phòng khám đã xác nhận lịch "
+                + appointment.getService().getName()
+                + " cho "
+                + appointment.getPet().getName()
+                + ".";
       }
 
       case CANCELLED -> {
         title = "Lịch hẹn đã bị hủy";
-        message = "Lịch "
-            + appointment.getService().getName()
-            + " của "
-            + appointment.getPet().getName()
-            + " đã bị hủy.";
+        message =
+            "Lịch "
+                + appointment.getService().getName()
+                + " của "
+                + appointment.getPet().getName()
+                + " đã bị hủy.";
       }
 
       case NO_SHOW -> {
         title = "Lịch hẹn đã quá giờ";
-        message = "Lịch của "
-            + appointment.getPet().getName()
-            + " được ghi nhận là không đến.";
+        message = "Lịch của " + appointment.getPet().getName() + " được ghi nhận là không đến.";
       }
 
       default -> {
@@ -527,17 +437,13 @@ public class AppointmentServiceImpl
     }
 
     notificationService.createNotification(
-        appointment
-            .getCustomer()
-            .getUser()
-            .getId(),
+        appointment.getCustomer().getUser().getId(),
         title,
         message,
         ownerAppointmentLink(appointment.getId()));
   }
 
-  private String buildReceptionistMessage(
-      Appointment appointment) {
+  private String buildReceptionistMessage(Appointment appointment) {
     return "Có lịch "
         + appointment.getService().getName()
         + " mới cho "
@@ -545,37 +451,26 @@ public class AppointmentServiceImpl
         + ".";
   }
 
-  private String ownerAppointmentLink(
-      UUID appointmentId) {
-    return "/booking?appointmentId="
-        + appointmentId;
+  private String ownerAppointmentLink(UUID appointmentId) {
+    return "/booking?appointmentId=" + appointmentId;
   }
 
-  private String managementAppointmentLink(
-      UUID appointmentId) {
-    return "/management/appointments?appointmentId="
-        + appointmentId;
+  private String managementAppointmentLink(UUID appointmentId) {
+    return "/management/appointments?appointmentId=" + appointmentId;
   }
 
   private boolean overlaps(
-      Instant firstStart,
-      Instant firstEnd,
-      Instant secondStart,
-      Instant secondEnd) {
-    return firstStart.isBefore(secondEnd)
-        && firstEnd.isAfter(secondStart);
+      Instant firstStart, Instant firstEnd, Instant secondStart, Instant secondEnd) {
+    return firstStart.isBefore(secondEnd) && firstEnd.isAfter(secondStart);
   }
 
-  private boolean isAppointmentOverlapViolation(
-      Throwable throwable) {
+  private boolean isAppointmentOverlapViolation(Throwable throwable) {
     Throwable current = throwable;
 
     while (current != null) {
       String message = current.getMessage();
 
-      if (message != null
-          && message.contains(
-              OVERLAP_CONSTRAINT)) {
+      if (message != null && message.contains(OVERLAP_CONSTRAINT)) {
         return true;
       }
 
@@ -585,36 +480,29 @@ public class AppointmentServiceImpl
     return false;
   }
 
-  private boolean isTerminalStatus(
-      AppointmentStatus status) {
+  private boolean isTerminalStatus(AppointmentStatus status) {
     return status == AppointmentStatus.DONE
         || status == AppointmentStatus.CANCELLED
         || status == AppointmentStatus.NO_SHOW;
   }
 
-  private int requireValidDuration(
-      Integer durationMin) {
+  private int requireValidDuration(Integer durationMin) {
     if (durationMin == null || durationMin <= 0) {
-      throw new IllegalStateException(
-          "Thời lượng dịch vụ không hợp lệ");
+      throw new IllegalStateException("Thời lượng dịch vụ không hợp lệ");
     }
 
     return durationMin;
   }
 
-  private void requireId(
-      UUID id,
-      String fieldName) {
+  private void requireId(UUID id, String fieldName) {
     if (id == null) {
-      throw new IllegalArgumentException(
-          fieldName + " là bắt buộc");
+      throw new IllegalArgumentException(fieldName + " là bắt buộc");
     }
   }
 
   private void requireDate(LocalDate date) {
     if (date == null) {
-      throw new IllegalArgumentException(
-          "Ngày đặt lịch là bắt buộc");
+      throw new IllegalArgumentException("Ngày đặt lịch là bắt buộc");
     }
   }
 

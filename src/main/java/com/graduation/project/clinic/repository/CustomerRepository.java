@@ -3,6 +3,11 @@ package com.graduation.project.clinic.repository;
 import com.graduation.project.clinic.customer.projection.CustomerAccountIdentityProjection;
 import com.graduation.project.clinic.customer.projection.StaffCustomerRowProjection;
 import com.graduation.project.clinic.entity.Customer;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -10,14 +15,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-public interface CustomerRepository
-    extends JpaRepository<Customer, UUID> {
+public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
   @EntityGraph(attributePaths = "user")
   Optional<Customer> findByUser_Id(UUID userId);
@@ -25,16 +23,17 @@ public interface CustomerRepository
   boolean existsByUser_Id(UUID userId);
 
   @EntityGraph(attributePaths = "user")
-  @Query("""
+  @Query(
+      """
       SELECT customer
       FROM Customer customer
       WHERE customer.id = :customerId
       """)
-  Optional<Customer> findByIdWithUser(
-      @Param("customerId") UUID customerId);
+  Optional<Customer> findByIdWithUser(@Param("customerId") UUID customerId);
 
   @EntityGraph(attributePaths = "user")
-  @Query("""
+  @Query(
+      """
       SELECT customer
       FROM Customer customer
       JOIN customer.user account
@@ -49,11 +48,11 @@ public interface CustomerRepository
               LIKE LOWER(CONCAT('%', :keyword, '%'))
       )
       """)
-  Page<Customer> search(
-      @Param("keyword") String keyword,
-      Pageable pageable);
+  Page<Customer> search(@Param("keyword") String keyword, Pageable pageable);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT
           customer.id AS "id",
           account.full_name AS "fullName",
@@ -189,8 +188,8 @@ public interface CustomerRepository
 
       ORDER BY account.full_name ASC
       """,
-
-      countQuery = """
+      countQuery =
+          """
           SELECT COUNT(*)
 
           FROM clinic_customers customer
@@ -294,7 +293,8 @@ public interface CustomerRepository
                   )
               )
           )
-          """, nativeQuery = true)
+          """,
+      nativeQuery = true)
   Page<StaffCustomerRowProjection> searchForStaff(
       @Param("keyword") String keyword,
       @Param("filter") String filter,
@@ -303,7 +303,9 @@ public interface CustomerRepository
       @Param("dayEnd") Instant dayEnd,
       Pageable pageable);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT
           customer.id AS "customerId",
           account.full_name AS "fullName",
@@ -313,7 +315,8 @@ public interface CustomerRepository
       JOIN public.users account
         ON account.id = customer.user_id
       WHERE customer.id IN (:customerIds)
-      """, nativeQuery = true)
+      """,
+      nativeQuery = true)
   List<CustomerAccountIdentityProjection> findAccountIdentitiesByCustomerIds(
       @Param("customerIds") Collection<UUID> customerIds);
 }

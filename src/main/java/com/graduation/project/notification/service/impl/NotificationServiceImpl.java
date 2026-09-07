@@ -5,6 +5,10 @@ import com.graduation.project.notification.dto.NotificationDto;
 import com.graduation.project.notification.entity.Notification;
 import com.graduation.project.notification.repository.NotificationRepository;
 import com.graduation.project.notification.service.NotificationService;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -14,17 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class NotificationServiceImpl
-    implements NotificationService {
+public class NotificationServiceImpl implements NotificationService {
 
   private static final int MAX_RECENT_ITEMS = 100;
   private static final int MAX_TITLE_LENGTH = 255;
@@ -40,37 +38,28 @@ public class NotificationServiceImpl
 
   @Override
   @Transactional
-  public void createNotification(
-      UUID userId,
-      String title,
-      String message,
-      String link) {
+  public void createNotification(UUID userId, String title, String message, String link) {
     requireUserId(userId);
 
-    String safeTitle = truncate(
-        normalizeRequired(
-            title,
-            "Tiêu đề thông báo"),
-        MAX_TITLE_LENGTH);
+    String safeTitle = truncate(normalizeRequired(title, "Tiêu đề thông báo"), MAX_TITLE_LENGTH);
 
-    String safeMessage = normalizeRequired(
-        message,
-        "Nội dung thông báo");
+    String safeMessage = normalizeRequired(message, "Nội dung thông báo");
 
     String safeLink = normalizeInternalLink(link);
 
-    Notification notification = Notification.builder()
-        .userId(userId)
-        .channel("IN_APP")
-        .recipient(userId.toString())
-        .title(safeTitle)
-        .body(safeMessage)
-        .link(safeLink)
-        .status("SENT")
-        .attemptCount(1)
-        .isRead(false)
-        .sentAt(Instant.now())
-        .build();
+    Notification notification =
+        Notification.builder()
+            .userId(userId)
+            .channel("IN_APP")
+            .recipient(userId.toString())
+            .title(safeTitle)
+            .body(safeMessage)
+            .link(safeLink)
+            .status("SENT")
+            .attemptCount(1)
+            .isRead(false)
+            .sentAt(Instant.now())
+            .build();
 
     notificationRepository.save(notification);
 
@@ -78,14 +67,11 @@ public class NotificationServiceImpl
   }
 
   @Override
-  public List<NotificationDto> getUserNotifications(
-      UUID userId) {
+  public List<NotificationDto> getUserNotifications(UUID userId) {
     requireUserId(userId);
 
     return notificationRepository
-        .findByUserIdOrderByCreatedAtDescIdDesc(
-            userId,
-            PageRequest.of(0, MAX_RECENT_ITEMS))
+        .findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, MAX_RECENT_ITEMS))
         .stream()
         .map(this::toDto)
         .toList();
@@ -93,25 +79,19 @@ public class NotificationServiceImpl
 
   @Override
   @Transactional
-  public void markAsRead(
-      UUID notificationId,
-      UUID userId) {
+  public void markAsRead(UUID notificationId, UUID userId) {
     requireUserId(userId);
 
     if (notificationId == null) {
-      throw new IllegalArgumentException(
-          "Notification ID là bắt buộc");
+      throw new IllegalArgumentException("Notification ID là bắt buộc");
     }
 
-    Notification notification = notificationRepository
-        .findByIdAndUserId(
-            notificationId,
-            userId)
-        .orElseThrow(() -> new ResourceNotFoundException(
-            "Không tìm thấy thông báo"));
+    Notification notification =
+        notificationRepository
+            .findByIdAndUserId(notificationId, userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
 
-    if (Boolean.TRUE.equals(
-        notification.getIsRead())) {
+    if (Boolean.TRUE.equals(notification.getIsRead())) {
       return;
     }
 
@@ -128,9 +108,7 @@ public class NotificationServiceImpl
   public void markAllAsRead(UUID userId) {
     requireUserId(userId);
 
-    notificationRepository.markAllAsRead(
-        userId,
-        Instant.now());
+    notificationRepository.markAllAsRead(userId, Instant.now());
 
     runAfterCommit(() -> cacheUnreadCount(userId, 0L));
   }
@@ -145,19 +123,14 @@ public class NotificationServiceImpl
       return cachedCount;
     }
 
-    long unreadCount = notificationRepository
-        .countByUserIdAndIsReadFalse(
-            userId);
+    long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);
 
-    cacheUnreadCount(
-        userId,
-        unreadCount);
+    cacheUnreadCount(userId, unreadCount);
 
     return unreadCount;
   }
 
-  private NotificationDto toDto(
-      Notification notification) {
+  private NotificationDto toDto(Notification notification) {
     return NotificationDto.builder()
         .id(notification.getId())
         .title(notification.getTitle())
@@ -171,74 +144,53 @@ public class NotificationServiceImpl
   /**
    * Chỉ chấp nhận đường dẫn nội bộ.
    *
-   * Hợp lệ:
-   * /profile/pets/123
-   * /profile/orders?orderId=123
+   * <p>Hợp lệ: /profile/pets/123 /profile/orders?orderId=123
    *
-   * Không hợp lệ:
-   * https://example.com
-   * //example.com
-   * javascript:alert(1)
+   * <p>Không hợp lệ: https://example.com //example.com javascript:alert(1)
    */
-  private String normalizeInternalLink(
-      String link) {
+  private String normalizeInternalLink(String link) {
     if (link == null || link.isBlank()) {
       return null;
     }
 
     String normalized = link.trim();
 
-    if (!normalized.startsWith("/") ||
-        normalized.startsWith("//")) {
-      throw new IllegalArgumentException(
-          "Link thông báo phải là đường dẫn nội bộ");
+    if (!normalized.startsWith("/") || normalized.startsWith("//")) {
+      throw new IllegalArgumentException("Link thông báo phải là đường dẫn nội bộ");
     }
 
-    return truncate(
-        normalized,
-        MAX_LINK_LENGTH);
+    return truncate(normalized, MAX_LINK_LENGTH);
   }
 
   private void requireUserId(UUID userId) {
     if (userId == null) {
-      throw new IllegalArgumentException(
-          "User ID là bắt buộc");
+      throw new IllegalArgumentException("User ID là bắt buộc");
     }
   }
 
-  private String normalizeRequired(
-      String value,
-      String fieldName) {
+  private String normalizeRequired(String value, String fieldName) {
     if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(
-          fieldName + " là bắt buộc");
+      throw new IllegalArgumentException(fieldName + " là bắt buộc");
     }
 
     return value.trim();
   }
 
-  private String truncate(
-      String value,
-      int maximumLength) {
+  private String truncate(String value, int maximumLength) {
     if (value.length() <= maximumLength) {
       return value;
     }
 
-    return value.substring(
-        0,
-        maximumLength);
+    return value.substring(0, maximumLength);
   }
 
   private String unreadCacheKey(UUID userId) {
     return UNREAD_KEY_PREFIX + userId;
   }
 
-  private Long readUnreadCountFromCache(
-      UUID userId) {
+  private Long readUnreadCountFromCache(UUID userId) {
     try {
-      String cachedValue = redisTemplate
-          .opsForValue()
-          .get(unreadCacheKey(userId));
+      String cachedValue = redisTemplate.opsForValue().get(unreadCacheKey(userId));
 
       if (cachedValue == null) {
         return null;
@@ -246,56 +198,42 @@ public class NotificationServiceImpl
 
       return Long.parseLong(cachedValue);
     } catch (RuntimeException exception) {
-      log.warn(
-          "Không thể đọc unread count từ Redis cho user {}",
-          userId);
+      log.warn("Không thể đọc unread count từ Redis cho user {}", userId);
 
       return null;
     }
   }
 
-  private void cacheUnreadCount(
-      UUID userId,
-      long unreadCount) {
+  private void cacheUnreadCount(UUID userId, long unreadCount) {
     try {
       redisTemplate
           .opsForValue()
-          .set(
-              unreadCacheKey(userId),
-              Long.toString(unreadCount),
-              UNREAD_CACHE_TTL);
+          .set(unreadCacheKey(userId), Long.toString(unreadCount), UNREAD_CACHE_TTL);
     } catch (RuntimeException exception) {
-      log.warn(
-          "Không thể cache unread count vào Redis cho user {}",
-          userId);
+      log.warn("Không thể cache unread count vào Redis cho user {}", userId);
     }
   }
 
   private void evictUnreadCache(UUID userId) {
     try {
-      redisTemplate.delete(
-          unreadCacheKey(userId));
+      redisTemplate.delete(unreadCacheKey(userId));
     } catch (RuntimeException exception) {
-      log.warn(
-          "Không thể xóa unread cache Redis cho user {}",
-          userId);
+      log.warn("Không thể xóa unread cache Redis cho user {}", userId);
     }
   }
 
   private void runAfterCommit(Runnable action) {
-    if (!TransactionSynchronizationManager
-        .isActualTransactionActive()) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
       action.run();
       return;
     }
 
-    TransactionSynchronizationManager
-        .registerSynchronization(
-            new TransactionSynchronization() {
-              @Override
-              public void afterCommit() {
-                action.run();
-              }
-            });
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            action.run();
+          }
+        });
   }
 }

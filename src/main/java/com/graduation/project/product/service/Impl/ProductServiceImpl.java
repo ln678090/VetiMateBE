@@ -38,7 +38,8 @@ public class ProductServiceImpl implements ProductService {
   private final ProductRepository productRepository;
   private final CategoryRepository categoryRepository;
   private final BrandRepository brandRepository;
-  private final com.graduation.project.clinic.repository.InvoiceReviewRepository invoiceReviewRepository;
+  private final com.graduation.project.clinic.repository.InvoiceReviewRepository
+      invoiceReviewRepository;
   private final ProductMapper productMapper;
 
   @Override
@@ -58,19 +59,21 @@ public class ProductServiceImpl implements ProductService {
 
   @Override
   public ProductResp getProductBySlug(String slug) {
-    Product p = productRepository
-        .findBySlugAndIsActiveTrue(slug)
-        .orElseThrow(
-            () -> new NoSuchElementException("Không tìm thấy sản phẩm với slug: " + slug));
+    Product p =
+        productRepository
+            .findBySlugAndIsActiveTrue(slug)
+            .orElseThrow(
+                () -> new NoSuchElementException("Không tìm thấy sản phẩm với slug: " + slug));
     return productMapper.toResp(p);
   }
 
   @Override
   public List<ProductResp> getRelatedProducts(String currentSlug, int limit) {
-    Product current = productRepository
-        .findBySlugAndIsActiveTrue(currentSlug)
-        .orElseThrow(
-            () -> new NoSuchElementException("Không tìm thấy sản phẩm: " + currentSlug));
+    Product current =
+        productRepository
+            .findBySlugAndIsActiveTrue(currentSlug)
+            .orElseThrow(
+                () -> new NoSuchElementException("Không tìm thấy sản phẩm: " + currentSlug));
 
     Pageable pageable = PageRequest.of(0, Math.max(1, Math.min(limit, 20)));
     return productMapper.toRespList(
@@ -92,37 +95,40 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp createProduct(ProductReq req) {
-    Category category = categoryRepository
-        .findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
 
-    Brand brand = brandRepository
-        .findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     String slug = generateSlug(req.getName());
     if (productRepository.findBySlugAndIsActiveTrue(slug).isPresent()) {
       slug = slug + "-" + System.currentTimeMillis();
     }
 
-    Product product = Product.builder()
-        .name(req.getName())
-        .slug(slug)
-        .sku(req.getSku())
-        .description(req.getDescription())
-        .shortDesc(req.getShortDesc())
-        .category(category)
-        .brand(brand)
-        .petType(req.getPetType())
-        .price(req.getPrice())
-        .originalPrice(req.getOriginalPrice())
-        .stockQuantity(req.getStockQuantity())
-        .imageUrl(req.getImageUrl())
-        .galleryUrls(req.getGalleryUrls())
-        .isFeatured(req.getIsFeatured())
-        .isNew(req.getIsNew())
-        .isActive(req.getIsActive())
-        .build();
+    Product product =
+        Product.builder()
+            .name(req.getName())
+            .slug(slug)
+            .sku(req.getSku())
+            .description(req.getDescription())
+            .shortDesc(req.getShortDesc())
+            .category(category)
+            .brand(brand)
+            .petType(req.getPetType())
+            .price(req.getPrice())
+            .originalPrice(req.getOriginalPrice())
+            .stockQuantity(req.getStockQuantity())
+            .imageUrl(req.getImageUrl())
+            .galleryUrls(req.getGalleryUrls())
+            .isFeatured(req.getIsFeatured())
+            .isNew(req.getIsNew())
+            .isActive(req.getIsActive())
+            .build();
 
     product = productRepository.save(product);
     return productMapper.toResp(product);
@@ -131,17 +137,20 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public ProductResp updateProduct(UUID id, ProductReq req) {
-    Product product = productRepository
-        .findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
 
-    Category category = categoryRepository
-        .findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
+    Category category =
+        categoryRepository
+            .findById(req.getCategoryId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục"));
 
-    Brand brand = brandRepository
-        .findById(req.getBrandId())
-        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
+    Brand brand =
+        brandRepository
+            .findById(req.getBrandId())
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thương hiệu"));
 
     if (!product.getName().equals(req.getName())) {
       String slug = generateSlug(req.getName());
@@ -175,9 +184,10 @@ public class ProductServiceImpl implements ProductService {
   @Override
   @Transactional
   public void deleteProduct(UUID id) {
-    Product product = productRepository
-        .findById(id)
-        .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
+    Product product =
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy sản phẩm"));
     product.setIsActive(false); // Soft delete
     productRepository.save(product);
   }
@@ -186,14 +196,16 @@ public class ProductServiceImpl implements ProductService {
   @Transactional(readOnly = true)
   public List<com.graduation.project.product.dto.resp.ProductReviewResp> getProductReviews(
       String slug) {
-    List<com.graduation.project.clinic.entity.InvoiceReview> reviews = invoiceReviewRepository
-        .findByProduct_SlugOrderByCreatedAtDesc(slug);
+    List<com.graduation.project.clinic.entity.InvoiceReview> reviews =
+        invoiceReviewRepository.findByProduct_SlugOrderByCreatedAtDesc(slug);
 
     return reviews.stream()
         .map(
             review -> {
-              String userName = review.getCustomer() != null ? review.getCustomer().getUser().getFullName()
-                  : "Khách hàng";
+              String userName =
+                  review.getCustomer() != null
+                      ? review.getCustomer().getUser().getFullName()
+                      : "Khách hàng";
               String avatarStr = "";
               if (userName != null && !userName.isEmpty()) {
                 String[] parts = userName.trim().split(" ");
@@ -204,8 +216,7 @@ public class ProductServiceImpl implements ProductService {
                   }
                 }
               }
-              if (avatarStr.isEmpty())
-                avatarStr = "KH";
+              if (avatarStr.isEmpty()) avatarStr = "KH";
 
               return com.graduation.project.product.dto.resp.ProductReviewResp.builder()
                   .id(review.getId())
@@ -222,8 +233,7 @@ public class ProductServiceImpl implements ProductService {
   }
 
   private String getReviewTitle(Integer rating) {
-    if (rating == null)
-      return "Tuyệt vời";
+    if (rating == null) return "Tuyệt vời";
     return switch (rating) {
       case 1 -> "Rất không hài lòng";
       case 2 -> "Không hài lòng";
@@ -235,8 +245,7 @@ public class ProductServiceImpl implements ProductService {
   }
 
   private String generateSlug(String input) {
-    if (input == null || input.isEmpty())
-      return "";
+    if (input == null || input.isEmpty()) return "";
     String nowhitespace = Pattern.compile("[\\s]").matcher(input).replaceAll("-");
     String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
     String slug = Pattern.compile("[^\\w-]").matcher(normalized).replaceAll("");
@@ -303,11 +312,11 @@ public class ProductServiceImpl implements ProductService {
       case "price-asc" -> Sort.by(Sort.Direction.ASC, "price");
       case "price-desc" -> Sort.by(Sort.Direction.DESC, "price");
       case "rating-desc" ->
-        Sort.by(Sort.Direction.DESC, "rating").and(Sort.by(Sort.Direction.DESC, "reviewCount"));
+          Sort.by(Sort.Direction.DESC, "rating").and(Sort.by(Sort.Direction.DESC, "reviewCount"));
       case "newest" ->
-        Sort.by(Sort.Direction.DESC, "isNew").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+          Sort.by(Sort.Direction.DESC, "isNew").and(Sort.by(Sort.Direction.DESC, "createdAt"));
       default ->
-        Sort.by(Sort.Direction.DESC, "isFeatured").and(Sort.by(Sort.Direction.DESC, "rating"));
+          Sort.by(Sort.Direction.DESC, "isFeatured").and(Sort.by(Sort.Direction.DESC, "rating"));
     };
   }
 }

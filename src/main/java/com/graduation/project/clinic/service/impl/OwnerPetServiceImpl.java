@@ -39,9 +39,10 @@ public class OwnerPetServiceImpl implements OwnerPetService {
   public PetDto getMyPet(UUID petId, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
-    Pet pet = petRepository
-        .findByIdAndCustomerIdAndDeletedAtIsNull(petId, customer.getId())
-        .orElseThrow(this::petNotFound);
+    Pet pet =
+        petRepository
+            .findByIdAndCustomerIdAndDeletedAtIsNull(petId, customer.getId())
+            .orElseThrow(this::petNotFound);
 
     return petMapper.toDto(pet);
   }
