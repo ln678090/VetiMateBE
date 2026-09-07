@@ -63,6 +63,22 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResp);
   }
 
+  @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+  public ResponseEntity<ApiResp<Void>> handleDataIntegrityViolationException(
+      org.springframework.dao.DataIntegrityViolationException ex) {
+    log.error("Data Integrity Violation: {}", ex.getMessage());
+
+    String message = "Dữ liệu đã tồn tại hoặc vi phạm ràng buộc dữ liệu";
+    if (ex.getMessage() != null && ex.getMessage().contains("products_sku_key")) {
+      message = "Mã SKU này đã tồn tại trong hệ thống";
+    }
+
+    ApiResp<Void> apiResp =
+        ApiResp.<Void>builder().message(message).timestamp(Instant.now().toString()).build();
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResp);
+  }
+
   /** Xử lý lỗi UsernameNotFoundException */
   @ExceptionHandler(UsernameNotFoundException.class)
   public ResponseEntity<ApiResp<Void>> usernameNotFoundException(UsernameNotFoundException ex) {
