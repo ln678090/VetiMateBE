@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +51,6 @@ public class OrderServiceImpl implements OrderService {
   private final LoyaltyService loyaltyService;
   private final UserVoucherRepository userVoucherRepository;
   private final InvoiceReviewRepository invoiceReviewRepository;
-  private final SimpMessagingTemplate messagingTemplate;
   private final UserRepository userRepository;
 
   @Override
@@ -100,7 +98,6 @@ public class OrderServiceImpl implements OrderService {
             + invoice.getTotalAmount().toString()
             + "đ",
         "/staff/shop/orders");
-    sendNewOrderEvent(savedInvoice);
 
     return mapToResponse(savedInvoice);
   }
@@ -438,20 +435,6 @@ public class OrderServiceImpl implements OrderService {
     invoice.setUserVoucher(userVoucher);
 
     return discount.min(subtotal);
-  }
-
-  private void sendNewOrderEvent(Invoice invoice) {
-    messagingTemplate.convertAndSend(
-        "/topic/shop-orders",
-        Map.of(
-            "type",
-            "NEW_ORDER",
-            "orderId",
-            invoice.getId().toString(),
-            "orderCode",
-            invoice.getInvoiceCode(),
-            "totalAmount",
-            invoice.getTotalAmount().toString()));
   }
 
   private void sendOrderStatusNotification(Invoice invoice, UUID ownerUserId, String newStatus, String cancelReason) {

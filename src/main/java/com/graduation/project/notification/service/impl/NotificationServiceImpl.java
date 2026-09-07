@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -32,34 +31,11 @@ public class NotificationServiceImpl implements NotificationService {
   private static final String UNREAD_KEY_PREFIX = "vetimate:notification:unread:";
 
   private final NotificationRepository notificationRepository;
-  private final SimpMessagingTemplate messagingTemplate;
   private final RedisTemplate<String, String> redisTemplate;
 
   @Override
   @Transactional
   public void createNotification(UUID userId, String title, String message, String link) {
-    Notification notification =
-        Notification.builder()
-            .userId(userId)
-            .title(title)
-            .body(message)
-            .link(link)
-            .channel("IN_APP")
-            .status("SENT")
-            .sentAt(java.time.Instant.now())
-            .isRead(false)
-            .build();
-
-    notification = notificationRepository.save(notification);
-
-    NotificationDto dto = mapToDto(notification);
-
-    if (userId == null) {
-      // Broadcast to all staff
-      messagingTemplate.convertAndSend("/topic/shop-orders", dto);
-    } else {
-      // Send to specific user
-      messagingTemplate.convertAndSend("/topic/user-orders-" + userId, dto);
     if (userId != null) {
       requireUserId(userId);
     }
@@ -84,12 +60,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     notificationRepository.save(notification);
 
-    NotificationDto dto = toDto(notification);
-
-    if (userId == null) {
-      messagingTemplate.convertAndSend("/topic/shop-orders", dto);
-    } else {
-      messagingTemplate.convertAndSend("/topic/user-orders-" + userId, dto);
+    if (userId != null) {
       runAfterCommit(() -> evictUnreadCache(userId));
     }
   }
@@ -105,32 +76,6 @@ public class NotificationServiceImpl implements NotificationService {
         .toList();
   }
 
-  @Override
-  @Transactional
-  public void markAsRead(UUID notificationId, UUID userId) {
-    requireUserId(userId);
-
-    if (notificationId == null) {
-      throw new IllegalArgumentException("Notification ID là bắt buộc");
-    }
-
-    Notification notification =
-        notificationRepository
-            .findByIdAndUserId(notificationId, userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
-
-    if (Boolean.TRUE.equals(notification.getIsRead())) {
-      return;
-    }
-
-    notification.setIsRead(true);
-    notification.setReadAt(Instant.now());
-
-    notificationRepository.save(notification);
-
-    runAfterCommit(() -> evictUnreadCache(userId));
->>>>>>> 9fe79f0974d26524fbf448b529529f49a5c5978e
-  }
 
   @Override
   @Transactional
