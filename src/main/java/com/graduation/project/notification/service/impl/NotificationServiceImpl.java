@@ -9,7 +9,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -67,7 +66,13 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public List<NotificationDto> getUserNotifications(UUID userId) {
-    requireUserId(userId);
+    if (userId == null) {
+      return notificationRepository
+          .findSystemNotifications(PageRequest.of(0, MAX_RECENT_ITEMS))
+          .stream()
+          .map(this::toDto)
+          .toList();
+    }
 
     return notificationRepository
         .findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, MAX_RECENT_ITEMS))
@@ -75,7 +80,6 @@ public class NotificationServiceImpl implements NotificationService {
         .map(this::toDto)
         .toList();
   }
-
 
   @Override
   @Transactional
@@ -86,11 +90,15 @@ public class NotificationServiceImpl implements NotificationService {
 
     Notification notification;
     if (userId == null) {
-      notification = notificationRepository.findById(notificationId)
-          .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+      notification =
+          notificationRepository
+              .findById(notificationId)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
     } else {
-      notification = notificationRepository.findByIdAndUserId(notificationId, userId)
-          .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
+      notification =
+          notificationRepository
+              .findByIdAndUserId(notificationId, userId)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông báo"));
     }
 
     if (Boolean.TRUE.equals(notification.getIsRead())) {
