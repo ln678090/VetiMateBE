@@ -44,6 +44,15 @@ public class StockVoucher {
   @Builder.Default
   private VoucherStatus status = VoucherStatus.DRAFT;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "source_warehouse", length = 30)
+  @Builder.Default
+  private WarehouseLocation sourceWarehouse = WarehouseLocation.STORAGE;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "destination_warehouse", length = 30)
+  private WarehouseLocation destinationWarehouse;
+
   @Column(name = "created_by", columnDefinition = "uuid")
   private UUID createdBy;
 

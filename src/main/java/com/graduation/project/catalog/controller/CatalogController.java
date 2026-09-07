@@ -75,7 +75,7 @@ public class CatalogController {
   // ===== Quản lý Danh mục (Staff/Admin) =====
 
   @PostMapping("/categories")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<CategoryResp> createCategory(
       @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
           com.graduation.project.catalog.dto.req.CategoryReq req) {
@@ -87,7 +87,7 @@ public class CatalogController {
   }
 
   @PutMapping("/categories/{id}")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<CategoryResp> updateCategory(
       @PathVariable java.util.UUID id,
       @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
@@ -100,7 +100,7 @@ public class CatalogController {
   }
 
   @org.springframework.web.bind.annotation.DeleteMapping("/categories/{id}")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<Void> deleteCategory(@PathVariable java.util.UUID id) {
     catalogService.deleteCategory(id);
     return ApiResp.<Void>builder()
@@ -112,7 +112,7 @@ public class CatalogController {
   // ===== Quản lý Thương hiệu (Staff/Admin) =====
 
   @PostMapping("/brands")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<BrandResp> createBrand(
       @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
           com.graduation.project.catalog.dto.req.BrandReq req) {
@@ -124,7 +124,7 @@ public class CatalogController {
   }
 
   @PutMapping("/brands/{id}")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<BrandResp> updateBrand(
       @PathVariable java.util.UUID id,
       @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
@@ -137,7 +137,7 @@ public class CatalogController {
   }
 
   @org.springframework.web.bind.annotation.DeleteMapping("/brands/{id}")
-  @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+  @PreAuthorize("hasAuthority('ROLE_SHOP_STAFF')")
   public ApiResp<Void> deleteBrand(@PathVariable java.util.UUID id) {
     catalogService.deleteBrand(id);
     return ApiResp.<Void>builder()

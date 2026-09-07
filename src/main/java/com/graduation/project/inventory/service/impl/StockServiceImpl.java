@@ -12,6 +12,7 @@ import com.graduation.project.inventory.entity.StockVoucherItem;
 import com.graduation.project.inventory.entity.Supplier;
 import com.graduation.project.inventory.entity.VoucherStatus;
 import com.graduation.project.inventory.entity.VoucherType;
+import com.graduation.project.inventory.entity.WarehouseLocation;
 import com.graduation.project.inventory.mapper.InventoryMapper;
 import com.graduation.project.inventory.repository.MedicineRepository;
 import com.graduation.project.inventory.repository.StockBatchRepository;
@@ -28,6 +29,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +65,11 @@ public class StockServiceImpl implements StockService {
         StockVoucher.builder()
             .type(request.type())
             .status(VoucherStatus.DRAFT)
+            .sourceWarehouse(
+                request.sourceWarehouse() != null
+                    ? request.sourceWarehouse()
+                    : WarehouseLocation.STORAGE)
+            .destinationWarehouse(request.destinationWarehouse())
             .note(request.note())
             .build();
     voucher = voucherRepository.save(voucher);
@@ -93,11 +100,8 @@ public class StockServiceImpl implements StockService {
     List<StockVoucherItem> items = voucherItemRepository.findByVoucherIdOrderById(voucherId);
 
     switch (voucher.getType()) {
-      case IMPORT -> processImport(items);
-      case EXPORT -> processExport(items);
-      case TRANSFER -> {
-        /* transfer giữa kho — tạm bỏ qua cho MVP */
-      }
+      case IMPORT -> processImport(voucher, items);
+      case EXPORT, TRANSFER -> processExportOrTransfer(voucher, items);
       case STOCKTAKE -> processStocktake(items);
     }
 
@@ -177,7 +181,7 @@ public class StockServiceImpl implements StockService {
   }
 
   // ============================================================
-  // BATCH QUERIES
+  // BATCH QUERIES & WAREHOUSE
   // ============================================================
 
   @Override
@@ -193,14 +197,116 @@ public class StockServiceImpl implements StockService {
   }
 
   @Override
-  public List<StockBatchResp> getNearExpiryBatches() {
-    LocalDate threshold = LocalDate.now().plusDays(30);
-    return inventoryMapper.toBatchRespList(batchRepository.findNearExpiryBatches(threshold));
+  public List<StockBatchResp> getBatchesByWarehouse(WarehouseLocation warehouse) {
+    WarehouseLocation wh = warehouse != null ? warehouse : WarehouseLocation.STORAGE;
+    return inventoryMapper.toBatchRespList(
+        batchRepository.findByWarehouseOrderByReceivedAtDesc(wh));
   }
 
   @Override
-  public List<StockBatchResp> getExpiredBatches() {
-    return inventoryMapper.toBatchRespList(batchRepository.findExpiredBatches());
+  public List<StockBatchResp> getNearExpiryBatches(WarehouseLocation warehouse) {
+    WarehouseLocation wh = warehouse != null ? warehouse : WarehouseLocation.STORAGE;
+    LocalDate threshold = LocalDate.now().plusDays(30);
+    return inventoryMapper.toBatchRespList(
+        batchRepository.findNearExpiryBatchesByWarehouse(threshold, wh));
+  }
+
+  @Override
+  public List<StockBatchResp> getExpiredBatches(WarehouseLocation warehouse) {
+    WarehouseLocation wh = warehouse != null ? warehouse : WarehouseLocation.STORAGE;
+    return inventoryMapper.toBatchRespList(batchRepository.findExpiredBatchesByWarehouse(wh));
+  }
+
+  // ============================================================
+  // QUICK EXPORT EXPIRED BATCHES TO DOCTOR WAREHOUSE
+  // ============================================================
+
+  @Override
+  @Transactional
+  public StockVoucherResp exportExpiredBatchToDoctor(UUID batchId, UUID currentUserId) {
+    StockBatch batch =
+        batchRepository
+            .findById(batchId)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy lô hàng: " + batchId));
+
+    if (batch.getRemainingQty().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("Lô hàng đã hết tồn kho, không thể xuất");
+    }
+
+    // Tạo phiếu xuất kho từ Kho bảo quản sang Kho bác sĩ
+    StockVoucher voucher =
+        StockVoucher.builder()
+            .type(VoucherType.EXPORT)
+            .status(VoucherStatus.DRAFT)
+            .sourceWarehouse(WarehouseLocation.STORAGE)
+            .destinationWarehouse(WarehouseLocation.DOCTOR)
+            .note(
+                "Xuất lô hết date "
+                    + (batch.getBatchCode() != null ? batch.getBatchCode() : "")
+                    + " lên kho bác sĩ")
+            .build();
+    voucher = voucherRepository.save(voucher);
+
+    StockVoucherItem item =
+        StockVoucherItem.builder()
+            .voucher(voucher)
+            .batch(batch)
+            .medicine(batch.getMedicine())
+            .product(batch.getProduct())
+            .quantity(batch.getRemainingQty())
+            .unitPrice(batch.getImportPrice())
+            .batchCode(batch.getBatchCode())
+            .expiryDate(batch.getExpiryDate())
+            .note("Xuất lô hết date lên kho bác sĩ")
+            .build();
+    voucherItemRepository.save(item);
+    voucher.setItems(List.of(item));
+
+    return approveVoucher(voucher.getId(), currentUserId);
+  }
+
+  @Override
+  @Transactional
+  public StockVoucherResp exportAllExpiredBatchesToDoctor(UUID currentUserId) {
+    List<StockBatch> expiredBatches =
+        batchRepository.findExpiredBatchesByWarehouse(WarehouseLocation.STORAGE);
+    if (expiredBatches.isEmpty()) {
+      throw new IllegalArgumentException("Không có lô hàng nào hết hạn trong kho bảo quản");
+    }
+
+    StockVoucher voucher =
+        StockVoucher.builder()
+            .type(VoucherType.EXPORT)
+            .status(VoucherStatus.DRAFT)
+            .sourceWarehouse(WarehouseLocation.STORAGE)
+            .destinationWarehouse(WarehouseLocation.DOCTOR)
+            .note(
+                "Xuất toàn bộ "
+                    + expiredBatches.size()
+                    + " lô hết date từ kho bảo quản lên kho bác sĩ")
+            .build();
+    voucher = voucherRepository.save(voucher);
+
+    List<StockVoucherItem> items = new ArrayList<>();
+    for (StockBatch batch : expiredBatches) {
+      StockVoucherItem item =
+          StockVoucherItem.builder()
+              .voucher(voucher)
+              .batch(batch)
+              .medicine(batch.getMedicine())
+              .product(batch.getProduct())
+              .quantity(batch.getRemainingQty())
+              .unitPrice(batch.getImportPrice())
+              .batchCode(batch.getBatchCode())
+              .expiryDate(batch.getExpiryDate())
+              .note("Xuất lô hết date lên kho bác sĩ")
+              .build();
+      items.add(item);
+    }
+    voucherItemRepository.saveAll(items);
+    voucher.setItems(items);
+
+    return approveVoucher(voucher.getId(), currentUserId);
   }
 
   // ============================================================
@@ -213,14 +319,21 @@ public class StockServiceImpl implements StockService {
     long totalSuppliers = supplierRepository.count();
     long lowStockCount = medicineRepository.findLowStockMedicines().size();
     long nearExpiryCount =
-        batchRepository.findNearExpiryBatches(LocalDate.now().plusDays(30)).size();
-    long expiredCount = batchRepository.findExpiredBatches().size();
+        batchRepository
+            .findNearExpiryBatchesByWarehouse(
+                LocalDate.now().plusDays(30), WarehouseLocation.STORAGE)
+            .size();
+    long expiredCount =
+        batchRepository.findExpiredBatchesByWarehouse(WarehouseLocation.STORAGE).size();
     long pendingVouchers = voucherRepository.countByStatus(VoucherStatus.DRAFT);
 
-    // Tổng giá trị tồn kho = sum(remaining_qty * import_price) cho tất cả batch
+    // Tổng giá trị tồn kho trong Kho bảo quản
     BigDecimal totalStockValue =
         batchRepository.findAll().stream()
-            .filter(b -> b.getRemainingQty().compareTo(BigDecimal.ZERO) > 0)
+            .filter(
+                b ->
+                    b.getWarehouse() == WarehouseLocation.STORAGE
+                        && b.getRemainingQty().compareTo(BigDecimal.ZERO) > 0)
             .map(b -> b.getRemainingQty().multiply(b.getImportPrice()))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -235,17 +348,26 @@ public class StockServiceImpl implements StockService {
   }
 
   // ============================================================
-  // PRIVATE: IMPORT / EXPORT / STOCKTAKE LOGIC
+  // PRIVATE: IMPORT / EXPORT / STOCKTAKE / TRANSFER LOGIC
   // ============================================================
 
-  /** Nhập kho: tạo batch mới cho mỗi dòng item và TĂNG tồn kho sản phẩm/thuốc */
-  private void processImport(List<StockVoucherItem> items) {
+  /**
+   * Nhập kho: tạo batch mới cho mỗi dòng item theo destinationWarehouse (mặc định STORAGE) và lưu
+   * nhà cung cấp
+   */
+  private void processImport(StockVoucher voucher, List<StockVoucherItem> items) {
+    WarehouseLocation targetWh =
+        voucher.getDestinationWarehouse() != null
+            ? voucher.getDestinationWarehouse()
+            : WarehouseLocation.STORAGE;
+
     for (StockVoucherItem item : items) {
       StockBatch batch =
           StockBatch.builder()
               .medicine(item.getMedicine())
               .product(item.getProduct())
               .supplier(item.getSupplier())
+              .warehouse(targetWh)
               .quantity(item.getQuantity())
               .remainingQty(item.getQuantity())
               .importPrice(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO)
@@ -262,8 +384,17 @@ public class StockServiceImpl implements StockService {
     }
   }
 
-  /** Xuất kho: trừ remaining_qty từ batch được chỉ định, FEFO nếu không chỉ định batch */
-  private void processExport(List<StockVoucherItem> items) {
+  /**
+   * Xuất kho / Chuyển kho: trừ tồn từ sourceWarehouse, nếu có destinationWarehouse thì chuyển sang
+   * kho đích
+   */
+  private void processExportOrTransfer(StockVoucher voucher, List<StockVoucherItem> items) {
+    WarehouseLocation sourceWh =
+        voucher.getSourceWarehouse() != null
+            ? voucher.getSourceWarehouse()
+            : WarehouseLocation.STORAGE;
+    WarehouseLocation destWh = voucher.getDestinationWarehouse();
+
     for (StockVoucherItem item : items) {
       BigDecimal qtyToExport = item.getQuantity();
 
@@ -276,13 +407,21 @@ public class StockServiceImpl implements StockService {
         }
         batch.setRemainingQty(batch.getRemainingQty().subtract(qtyToExport));
         batchRepository.save(batch);
+
+        if (destWh != null) {
+          transferToDestinationWarehouse(batch, qtyToExport, destWh);
+        }
       } else {
-        // FEFO: xuất từ lô sắp hết hạn trước
+        // FEFO: xuất từ lô sắp hết hạn trước trong sourceWarehouse
         List<StockBatch> batches;
         if (item.getMedicine() != null) {
-          batches = batchRepository.findAvailableBatchesByMedicineFefo(item.getMedicine().getId());
+          batches =
+              batchRepository.findAvailableBatchesByMedicineAndWarehouseFefo(
+                  item.getMedicine().getId(), sourceWh);
         } else if (item.getProduct() != null) {
-          batches = batchRepository.findAvailableBatchesByProductFefo(item.getProduct().getId());
+          batches =
+              batchRepository.findAvailableBatchesByProductAndWarehouseFefo(
+                  item.getProduct().getId(), sourceWh);
         } else {
           throw new IllegalArgumentException("Dòng xuất kho phải có medicine hoặc product");
         }
@@ -294,12 +433,17 @@ public class StockServiceImpl implements StockService {
           BigDecimal canTake = batch.getRemainingQty().min(remaining);
           batch.setRemainingQty(batch.getRemainingQty().subtract(canTake));
           batchRepository.save(batch);
+
+          if (destWh != null) {
+            transferToDestinationWarehouse(batch, canTake, destWh);
+          }
+
           remaining = remaining.subtract(canTake);
         }
 
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
           throw new IllegalArgumentException(
-              "Không đủ tồn kho cho xuất FEFO. Còn thiếu: " + remaining);
+              "Không đủ tồn kho cho xuất FEFO tại kho " + sourceWh + ". Còn thiếu: " + remaining);
         }
       }
 
@@ -309,6 +453,42 @@ public class StockServiceImpl implements StockService {
         product.setStockQuantity(product.getStockQuantity() + qtyToExport.intValue());
         productRepository.save(product);
       }
+    }
+  }
+
+  private void transferToDestinationWarehouse(
+      StockBatch sourceBatch, BigDecimal qty, WarehouseLocation destWh) {
+    Optional<StockBatch> destBatchOpt = Optional.empty();
+    if (sourceBatch.getMedicine() != null) {
+      destBatchOpt =
+          batchRepository.findByMedicineIdAndBatchCodeAndWarehouse(
+              sourceBatch.getMedicine().getId(), sourceBatch.getBatchCode(), destWh);
+    } else if (sourceBatch.getProduct() != null) {
+      destBatchOpt =
+          batchRepository.findByProductIdAndBatchCodeAndWarehouse(
+              sourceBatch.getProduct().getId(), sourceBatch.getBatchCode(), destWh);
+    }
+
+    if (destBatchOpt.isPresent()) {
+      StockBatch destBatch = destBatchOpt.get();
+      destBatch.setQuantity(destBatch.getQuantity().add(qty));
+      destBatch.setRemainingQty(destBatch.getRemainingQty().add(qty));
+      batchRepository.save(destBatch);
+    } else {
+      StockBatch newDestBatch =
+          StockBatch.builder()
+              .medicine(sourceBatch.getMedicine())
+              .product(sourceBatch.getProduct())
+              .supplier(sourceBatch.getSupplier())
+              .batchCode(sourceBatch.getBatchCode())
+              .warehouse(destWh)
+              .quantity(qty)
+              .remainingQty(qty)
+              .importPrice(sourceBatch.getImportPrice())
+              .expiryDate(sourceBatch.getExpiryDate())
+              .receivedAt(OffsetDateTime.now())
+              .build();
+      batchRepository.save(newDestBatch);
     }
   }
 

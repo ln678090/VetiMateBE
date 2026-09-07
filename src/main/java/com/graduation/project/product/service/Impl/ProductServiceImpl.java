@@ -122,7 +122,7 @@ public class ProductServiceImpl implements ProductService {
             .petType(req.getPetType())
             .price(req.getPrice())
             .originalPrice(req.getOriginalPrice())
-            .stockQuantity(req.getStockQuantity())
+            .stockQuantity(req.getStockQuantity() != null ? req.getStockQuantity() : 0)
             .imageUrl(req.getImageUrl())
             .galleryUrls(req.getGalleryUrls())
             .isFeatured(req.getIsFeatured())
@@ -170,7 +170,7 @@ public class ProductServiceImpl implements ProductService {
     product.setPetType(req.getPetType());
     product.setPrice(req.getPrice());
     product.setOriginalPrice(req.getOriginalPrice());
-    product.setStockQuantity(req.getStockQuantity());
+    product.setStockQuantity(req.getStockQuantity() != null ? req.getStockQuantity() : 0);
     product.setImageUrl(req.getImageUrl());
     product.setGalleryUrls(req.getGalleryUrls());
     product.setIsFeatured(req.getIsFeatured());
