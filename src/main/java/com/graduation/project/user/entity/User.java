@@ -63,11 +63,10 @@ public class User {
   @Column(name = "phone", length = 20)
   private String phone;
 
+  @Column(name = "address", length = 255)
+  private String address;
   @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "user_roles",
-      joinColumns = @JoinColumn(name = "user_id"),
-      inverseJoinColumns = @JoinColumn(name = "role_id"))
+  @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
   @Builder.Default
   private List<Role> roles = new ArrayList<>();
 

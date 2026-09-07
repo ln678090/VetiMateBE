@@ -22,6 +22,7 @@ import com.graduation.project.clinic.repository.PetRepository;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.inventory.entity.Medicine;
 import com.graduation.project.inventory.repository.MedicineRepository;
+import com.graduation.project.notification.service.NotificationService;
 import com.graduation.project.staff.entity.Staff;
 import com.graduation.project.staff.entity.StaffRoleType;
 import com.graduation.project.staff.repository.StaffRepository;
@@ -44,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ExaminationService {
 
+  private final NotificationService notificationService;
   // private static final String DOCTOR_ROLE_TYPE = "DOCTOR";
 
   private final AppointmentRepository appointmentRepository;
@@ -57,19 +59,17 @@ public class ExaminationService {
   public MedicalRecordResponse openExamination(UUID appointmentId, UUID currentUserId) {
     Staff doctor = requireActiveDoctor(currentUserId);
 
-    Appointment appointment =
-        appointmentRepository
-            .findByIdForUpdate(appointmentId)
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch hẹn"));
+    Appointment appointment = appointmentRepository
+        .findByIdForUpdate(appointmentId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch hẹn"));
 
     if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
       throw new ClinicWorkflowException("Chỉ được khám lịch ở trạng thái CONFIRMED");
     }
 
-    MedicalRecord medicalRecord =
-        medicalRecordRepository
-            .findByAppointment_Id(appointmentId)
-            .orElseGet(() -> createMedicalRecord(appointment, doctor));
+    MedicalRecord medicalRecord = medicalRecordRepository
+        .findByAppointment_Id(appointmentId)
+        .orElseGet(() -> createMedicalRecord(appointment, doctor));
 
     requireDoctorOwnership(medicalRecord, doctor);
 
@@ -114,18 +114,16 @@ public class ExaminationService {
 
     List<PrescriptionItemRequest> requestedItems = request.items();
 
-    Set<UUID> medicineIds =
-        requestedItems.stream()
-            .map(PrescriptionItemRequest::medicineId)
-            .collect(Collectors.toSet());
+    Set<UUID> medicineIds = requestedItems.stream()
+        .map(PrescriptionItemRequest::medicineId)
+        .collect(Collectors.toSet());
 
     if (medicineIds.size() != requestedItems.size()) {
       throw new ClinicWorkflowException("Một loại thuốc không được xuất hiện nhiều lần trong đơn");
     }
 
-    Map<UUID, Medicine> medicineById =
-        medicineRepository.findAllByIdInAndIsActiveTrue(medicineIds).stream()
-            .collect(Collectors.toMap(Medicine::getId, Function.identity()));
+    Map<UUID, Medicine> medicineById = medicineRepository.findAllByIdInAndIsActiveTrue(medicineIds).stream()
+        .collect(Collectors.toMap(Medicine::getId, Function.identity()));
 
     if (medicineById.size() != medicineIds.size()) {
       throw new ClinicWorkflowException("Có thuốc không tồn tại hoặc đã ngừng sử dụng");
@@ -134,13 +132,11 @@ public class ExaminationService {
     prescriptionRepository.deleteAllByMedicalRecord_Id(medicalRecordId);
     prescriptionRepository.flush();
 
-    List<Prescription> prescriptions =
-        requestedItems.stream()
-            .map(
-                requestItem ->
-                    createPrescription(
-                        medicalRecord, medicineById.get(requestItem.medicineId()), requestItem))
-            .toList();
+    List<Prescription> prescriptions = requestedItems.stream()
+        .map(
+            requestItem -> createPrescription(
+                medicalRecord, medicineById.get(requestItem.medicineId()), requestItem))
+        .toList();
 
     if (!prescriptions.isEmpty()) {
       prescriptionRepository.saveAllAndFlush(prescriptions);
@@ -150,8 +146,12 @@ public class ExaminationService {
   }
 
   @Transactional
-  public MedicalRecordResponse complete(UUID medicalRecordId, UUID currentUserId) {
-    MedicalRecord medicalRecord = requireOwnedRecordForUpdate(medicalRecordId, currentUserId);
+  public MedicalRecordResponse complete(
+      UUID medicalRecordId,
+      UUID currentUserId) {
+    MedicalRecord medicalRecord = requireOwnedRecordForUpdate(
+        medicalRecordId,
+        currentUserId);
 
     requireInProgress(medicalRecord);
     validateBeforeCompletion(medicalRecord);
@@ -159,18 +159,23 @@ public class ExaminationService {
     Appointment appointment = medicalRecord.getAppointment();
 
     if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-      throw new ClinicWorkflowException("Lịch hẹn không còn ở trạng thái CONFIRMED");
+      throw new ClinicWorkflowException(
+          "Lịch hẹn không còn ở trạng thái CONFIRMED");
     }
 
-    Pet pet =
-        petRepository
-            .findByIdForUpdate(medicalRecord.getPet().getId())
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thú cưng"));
+    Pet pet = petRepository
+        .findByIdForUpdate(
+            medicalRecord.getPet().getId())
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Không tìm thấy thú cưng"));
 
     Instant completedAt = Instant.now();
 
-    medicalRecord.setStatus(MedicalRecordStatus.COMPLETED);
-    appointment.setStatus(AppointmentStatus.DONE);
+    medicalRecord.setStatus(
+        MedicalRecordStatus.COMPLETED);
+
+    appointment.setStatus(
+        AppointmentStatus.DONE);
 
     pet.updateHealthSnapshot(
         medicalRecord.getHealthStatus(),
@@ -181,21 +186,43 @@ public class ExaminationService {
     petRepository.save(pet);
     appointmentRepository.save(appointment);
 
-    MedicalRecord savedRecord = medicalRecordRepository.saveAndFlush(medicalRecord);
+    MedicalRecord savedRecord = medicalRecordRepository.saveAndFlush(
+        medicalRecord);
+
+    notifyOwnerAboutCompletedExamination(
+        appointment,
+        pet);
 
     return toResponse(savedRecord);
+  }
+
+  private void notifyOwnerAboutCompletedExamination(
+      Appointment appointment,
+      Pet pet) {
+    UUID ownerUserId = appointment
+        .getCustomer()
+        .getUser()
+        .getId();
+
+    notificationService.createNotification(
+        ownerUserId,
+        "Ca khám đã hoàn tất",
+        "Ca khám của "
+            + pet.getName()
+            + " đã hoàn tất. Bạn có thể xem "
+            + "kết quả trong hồ sơ sức khỏe.",
+        "/profile/pets/" + pet.getId());
   }
 
   public List<MedicineOptionResponse> getMedicines() {
     return medicineRepository.findByIsActiveTrueOrderByNameAsc().stream()
         .map(
-            medicine ->
-                new MedicineOptionResponse(
-                    medicine.getId(),
-                    medicine.getName(),
-                    medicine.getSku(),
-                    medicine.getUnit(),
-                    medicine.getSellPrice()))
+            medicine -> new MedicineOptionResponse(
+                medicine.getId(),
+                medicine.getName(),
+                medicine.getSku(),
+                medicine.getUnit(),
+                medicine.getSellPrice()))
         .toList();
   }
 
@@ -205,16 +232,15 @@ public class ExaminationService {
     return medicalRecordRepository
         .findByDoctor_UserIdAndStatus(currentUserId, MedicalRecordStatus.COMPLETED, pageable)
         .map(
-            record ->
-                new ExaminationHistoryResponse(
-                    record.getId(),
-                    record.getAppointment().getId(),
-                    record.getPet().getId(),
-                    record.getPet().getName(),
-                    record.getDiagnosis(),
-                    record.getHealthStatus(),
-                    record.getWeightKg(),
-                    record.getUpdatedAt()));
+            record -> new ExaminationHistoryResponse(
+                record.getId(),
+                record.getAppointment().getId(),
+                record.getPet().getId(),
+                record.getPet().getName(),
+                record.getDiagnosis(),
+                record.getHealthStatus(),
+                record.getWeightKg(),
+                record.getUpdatedAt()));
   }
 
   private Staff requireActiveDoctor(UUID currentUserId) {
@@ -226,10 +252,9 @@ public class ExaminationService {
   private MedicalRecord requireOwnedRecord(UUID medicalRecordId, UUID currentUserId) {
     Staff doctor = requireActiveDoctor(currentUserId);
 
-    MedicalRecord medicalRecord =
-        medicalRecordRepository
-            .findDetailedById(medicalRecordId)
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu khám"));
+    MedicalRecord medicalRecord = medicalRecordRepository
+        .findDetailedById(medicalRecordId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu khám"));
 
     requireDoctorOwnership(medicalRecord, doctor);
 
@@ -239,10 +264,9 @@ public class ExaminationService {
   private MedicalRecord requireOwnedRecordForUpdate(UUID medicalRecordId, UUID currentUserId) {
     Staff doctor = requireActiveDoctor(currentUserId);
 
-    MedicalRecord medicalRecord =
-        medicalRecordRepository
-            .findDetailedByIdForUpdate(medicalRecordId)
-            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu khám"));
+    MedicalRecord medicalRecord = medicalRecordRepository
+        .findDetailedByIdForUpdate(medicalRecordId)
+        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu khám"));
 
     requireDoctorOwnership(medicalRecord, doctor);
 
@@ -304,10 +328,10 @@ public class ExaminationService {
   }
 
   private MedicalRecordResponse toResponse(MedicalRecord medicalRecord) {
-    List<PrescriptionItemResponse> prescriptions =
-        prescriptionRepository.findAllByMedicalRecord_IdOrderByIdAsc(medicalRecord.getId()).stream()
-            .map(this::toPrescriptionResponse)
-            .toList();
+    List<PrescriptionItemResponse> prescriptions = prescriptionRepository
+        .findAllByMedicalRecord_IdOrderByIdAsc(medicalRecord.getId()).stream()
+        .map(this::toPrescriptionResponse)
+        .toList();
 
     return new MedicalRecordResponse(
         medicalRecord.getId(),

@@ -55,25 +55,22 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
   @Override
   @Transactional(readOnly = true)
   public ClinicInvoiceDto getInvoiceById(UUID id) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
+    Invoice invoice = invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
     return mapToDto(invoice);
   }
 
   @Override
   @Transactional
   public ClinicInvoiceDto createInvoice(CreateClinicInvoiceRequest request, UUID staffId) {
-    Customer customer =
-        customerRepository
-            .findById(request.getCustomerId())
-            .orElseThrow(() -> new RuntimeException("Customer not found"));
+    Customer customer = customerRepository
+        .findById(request.getCustomerId())
+        .orElseThrow(() -> new RuntimeException("Customer not found"));
 
     Pet pet = null;
     if (request.getPetId() != null) {
-      pet =
-          petRepository
-              .findById(request.getPetId())
-              .orElseThrow(() -> new RuntimeException("Pet not found"));
+      pet = petRepository
+          .findById(request.getPetId())
+          .orElseThrow(() -> new RuntimeException("Pet not found"));
     }
 
     Staff staff = staffRepository.findByUserIdAndActiveTrue(staffId).orElse(null);
@@ -105,16 +102,14 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
 
       // Check reference
       if (itemReq.getServiceId() != null) {
-        ClinicService service =
-            clinicServiceRepository
-                .findById(itemReq.getServiceId())
-                .orElseThrow(() -> new RuntimeException("Service not found"));
+        ClinicService service = clinicServiceRepository
+            .findById(itemReq.getServiceId())
+            .orElseThrow(() -> new RuntimeException("Service not found"));
         item.setServiceId(service.getId());
       } else if (itemReq.getProductId() != null) {
-        Product product =
-            productRepository
-                .findById(itemReq.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository
+            .findById(itemReq.getProductId())
+            .orElseThrow(() -> new RuntimeException("Product not found"));
         item.setProduct(product);
 
         // Deduct stock for product
@@ -124,10 +119,9 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
         product.setStockQuantity(product.getStockQuantity() - itemReq.getQuantity().intValue());
         productRepository.save(product);
       } else if (itemReq.getMedicineId() != null) {
-        Medicine medicine =
-            medicineRepository
-                .findById(itemReq.getMedicineId())
-                .orElseThrow(() -> new RuntimeException("Medicine not found"));
+        Medicine medicine = medicineRepository
+            .findById(itemReq.getMedicineId())
+            .orElseThrow(() -> new RuntimeException("Medicine not found"));
         item.setMedicineId(medicine.getId());
         // Medicine stock is managed by batches, skipping simple stock deduction here
       } else {
@@ -150,8 +144,7 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
   @Override
   @Transactional
   public ClinicInvoiceDto payInvoice(UUID id, PayClinicInvoiceRequest request) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
+    Invoice invoice = invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
 
     if (!"PENDING".equals(invoice.getStatus()) && !"DRAFT".equals(invoice.getStatus())) {
       throw new RuntimeException("Only PENDING or DRAFT invoices can be paid");
@@ -168,8 +161,7 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
   @Override
   @Transactional
   public ClinicInvoiceDto cancelInvoice(UUID id) {
-    Invoice invoice =
-        invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
+    Invoice invoice = invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
 
     if ("PAID".equals(invoice.getStatus())) {
       throw new RuntimeException("Cannot cancel a paid invoice");
@@ -197,32 +189,34 @@ public class ClinicInvoiceServiceImpl implements ClinicInvoiceService {
   private ClinicInvoiceDto mapToDto(Invoice invoice) {
     List<ClinicInvoiceItemDto> itemDtos = new ArrayList<>();
     if (invoice.getItems() != null) {
-      itemDtos =
-          invoice.getItems().stream()
-              .map(
-                  item -> {
-                    String type = "UNKNOWN";
-                    if (item.getServiceId() != null) type = "SERVICE";
-                    else if (item.getProduct() != null) type = "PRODUCT";
-                    else if (item.getMedicineId() != null) type = "MEDICINE";
+      itemDtos = invoice.getItems().stream()
+          .map(
+              item -> {
+                String type = "UNKNOWN";
+                if (item.getServiceId() != null)
+                  type = "SERVICE";
+                else if (item.getProduct() != null)
+                  type = "PRODUCT";
+                else if (item.getMedicineId() != null)
+                  type = "MEDICINE";
 
-                    return ClinicInvoiceItemDto.builder()
-                        .id(item.getId())
-                        .name(item.getNameSnapshot())
-                        .quantity(item.getQuantity())
-                        .unitPrice(item.getUnitPrice())
-                        .total(item.getTotal())
-                        .type(type)
-                        .build();
-                  })
-              .collect(Collectors.toList());
+                return ClinicInvoiceItemDto.builder()
+                    .id(item.getId())
+                    .name(item.getNameSnapshot())
+                    .quantity(item.getQuantity())
+                    .unitPrice(item.getUnitPrice())
+                    .total(item.getTotal())
+                    .type(type)
+                    .build();
+              })
+          .collect(Collectors.toList());
     }
 
     return ClinicInvoiceDto.builder()
         .id(invoice.getId())
         .invoiceCode(invoice.getInvoiceCode())
-        .customerName(invoice.getCustomer() != null ? invoice.getCustomer().getFullName() : null)
-        .customerPhone(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : null)
+        .customerName(invoice.getCustomer() != null ? invoice.getCustomer().getUser().getFullName() : null)
+        .customerPhone(invoice.getCustomer() != null ? invoice.getCustomer().getUser().getPhone() : null)
         .petName(invoice.getPet() != null ? invoice.getPet().getName() : null)
         .type(invoice.getType())
         .status(invoice.getStatus())

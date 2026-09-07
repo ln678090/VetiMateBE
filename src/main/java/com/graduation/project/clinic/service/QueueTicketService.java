@@ -29,18 +29,16 @@ public class QueueTicketService {
   @Transactional(readOnly = true)
   public List<QueueTicketDto> getTodayQueue(QueueType type) {
     LocalDate today = LocalDate.now();
-    List<QueueTicket> tickets =
-        queueTicketRepository.findByQueueDateAndQueueTypeOrderByTicketNumberAsc(today, type);
+    List<QueueTicket> tickets = queueTicketRepository.findByQueueDateAndQueueTypeOrderByTicketNumberAsc(today, type);
     return tickets.stream().map(this::mapToDto).collect(Collectors.toList());
   }
 
   @Transactional
   public QueueTicketDto createTicket(QueueTicketRequest request) {
     LocalDate today = LocalDate.now();
-    Integer maxNumber =
-        queueTicketRepository
-            .findMaxTicketNumberByDateAndType(today, request.queueType())
-            .orElse(0);
+    Integer maxNumber = queueTicketRepository
+        .findMaxTicketNumberByDateAndType(today, request.queueType())
+        .orElse(0);
 
     QueueTicket ticket = new QueueTicket();
     ticket.setQueueDate(today);
@@ -49,10 +47,9 @@ public class QueueTicketService {
     ticket.setStatus(QueueStatus.WAITING);
 
     if (request.appointmentId() != null) {
-      Appointment appointment =
-          appointmentRepository
-              .findById(request.appointmentId())
-              .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+      Appointment appointment = appointmentRepository
+          .findById(request.appointmentId())
+          .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
       ticket.setAppointment(appointment);
     }
 
@@ -62,10 +59,9 @@ public class QueueTicketService {
 
   @Transactional
   public QueueTicketDto updateStatus(UUID id, QueueStatusUpdateRequest request) {
-    QueueTicket ticket =
-        queueTicketRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Queue ticket not found"));
+    QueueTicket ticket = queueTicketRepository
+        .findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Queue ticket not found"));
 
     ticket.setStatus(request.status());
 
@@ -89,7 +85,7 @@ public class QueueTicketService {
       Appointment apt = ticket.getAppointment();
       appointmentId = apt.getId();
       if (apt.getCustomer() != null) {
-        customerName = apt.getCustomer().getFullName();
+        customerName = apt.getCustomer().getUser().getFullName();
       }
       if (apt.getPet() != null) {
         petName = apt.getPet().getName();

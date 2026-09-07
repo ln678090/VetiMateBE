@@ -39,10 +39,9 @@ public class OwnerPetServiceImpl implements OwnerPetService {
   public PetDto getMyPet(UUID petId, UUID currentUserId) {
     Customer customer = requireOwnerCustomer(currentUserId);
 
-    Pet pet =
-        petRepository
-            .findByIdAndCustomerIdAndDeletedAtIsNull(petId, customer.getId())
-            .orElseThrow(this::petNotFound);
+    Pet pet = petRepository
+        .findByIdAndCustomerIdAndDeletedAtIsNull(petId, customer.getId())
+        .orElseThrow(this::petNotFound);
 
     return petMapper.toDto(pet);
   }
@@ -85,7 +84,7 @@ public class OwnerPetServiceImpl implements OwnerPetService {
 
   private Customer requireOwnerCustomer(UUID currentUserId) {
     return customerRepository
-        .findByUserId(currentUserId)
+        .findByUser_Id(currentUserId)
         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ khách hàng"));
   }
 

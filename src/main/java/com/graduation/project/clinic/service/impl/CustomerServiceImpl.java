@@ -9,99 +9,143 @@ import com.graduation.project.clinic.service.CustomerService;
 import com.graduation.project.common.exception.ResourceNotFoundException;
 import com.graduation.project.user.entity.User;
 import com.graduation.project.user.repository.UserRepository;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
-public class CustomerServiceImpl implements CustomerService {
+@Transactional(readOnly = true)
+public class CustomerServiceImpl
+    implements CustomerService {
 
   private final CustomerRepository customerRepository;
-
   private final CustomerMapper customerMapper;
   private final UserRepository userRepository;
 
   @Override
   @Transactional
-  public CustomerDto getOrCreateForCurrentUser(UUID userId) {
+  public CustomerDto getOrCreateForCurrentUser(
+      UUID userId) {
     return customerRepository
-        .findByUserId(userId)
+        .findByUser_Id(userId)
         .map(customerMapper::toDto)
-        .orElseGet(
-            () -> {
-              User user =
-                  userRepository
-                      .findById(userId)
-                      .orElseThrow(() -> new ResourceNotFoundException("User không tồn tại"));
-
-              Customer customer =
-                  Customer.builder()
-                      .userId(userId)
-                      .fullName(user.getFullName())
-                      .email(user.getEmail())
-                      .phone("null")
-                      .build();
-
-              return customerMapper.toDto(customerRepository.save(customer));
-            });
+        .orElseGet(() -> createCustomerForUser(userId, null));
   }
 
   @Override
   @Transactional
-  public CustomerDto create(CustomerRequest request) {
-    if (request.phone() != null && customerRepository.existsByPhone(request.phone())) {
-      throw new IllegalStateException("Số điện thoại đã tồn tại: " + request.phone());
+  public CustomerDto create(
+      CustomerRequest request) {
+    UUID userId = request.userId();
+
+    if (customerRepository.existsByUser_Id(userId)) {
+      throw new IllegalStateException(
+          "Tài khoản đã có hồ sơ chủ pet");
     }
-    Customer customer =
-        Customer.builder()
-            .fullName(request.fullName())
-            .phone(request.phone())
-            .email(request.email())
-            .address(request.address())
-            .build();
-    return customerMapper.toDto(customerRepository.save(customer));
+
+    return createCustomerForUser(
+        userId,
+        request.note());
   }
 
   @Override
   @Transactional
-  public CustomerDto update(UUID id, CustomerRequest request) {
-    Customer customer =
-        customerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
-    customer.setFullName(request.fullName());
-    customer.setPhone(request.phone());
-    customer.setEmail(request.email());
-    customer.setAddress(request.address());
-    return customerMapper.toDto(customerRepository.save(customer));
+  public CustomerDto update(
+      UUID customerId,
+      CustomerRequest request) {
+    Customer customer = customerRepository
+        .findByIdWithUser(customerId)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Không tìm thấy hồ sơ chủ pet"));
+
+    UUID currentOwnerId = customer.getUser().getId();
+
+    if (!currentOwnerId.equals(request.userId())) {
+      throw new IllegalArgumentException(
+          "Không được thay đổi tài khoản sở hữu");
+    }
+
+    customer.setNote(
+        normalize(request.note()));
+
+    Customer savedCustomer = customerRepository.save(customer);
+
+    return customerMapper.toDto(savedCustomer);
   }
 
   @Override
-  @Transactional(readOnly = true)
-  public CustomerDto getById(UUID id) {
-    Customer customer =
-        customerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng: " + id));
+  public CustomerDto getById(UUID customerId) {
+    Customer customer = customerRepository
+        .findByIdWithUser(customerId)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Không tìm thấy hồ sơ chủ pet"));
+
     return customerMapper.toDto(customer);
   }
 
   @Override
-  @Transactional(readOnly = true)
-  public Page<CustomerDto> search(String keyword, Pageable pageable) {
-    return customerRepository.search(keyword, pageable).map(customerMapper::toDto);
+  public Page<CustomerDto> search(
+      String keyword,
+      Pageable pageable) {
+    String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+    return customerRepository
+        .search(normalizedKeyword, pageable)
+        .map(customerMapper::toDto);
   }
 
   @Override
   @Transactional
-  public void delete(UUID id) {
-    if (!customerRepository.existsById(id)) {
-      throw new IllegalArgumentException("Không tìm thấy khách hàng: " + id);
+  public void delete(UUID customerId) {
+    Customer customer = customerRepository
+        .findByIdWithUser(customerId)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Không tìm thấy hồ sơ chủ pet"));
+
+    if (!customer.getPets().isEmpty()) {
+      throw new IllegalStateException(
+          "Không thể xóa chủ pet đang có thú cưng");
     }
-    customerRepository.deleteById(id);
+
+    /*
+     * Nếu bảng appointment cũng liên kết Customer,
+     * database sẽ từ chối xóa khi còn lịch sử.
+     */
+    customerRepository.delete(customer);
+  }
+
+  private CustomerDto createCustomerForUser(
+      UUID userId,
+      String note) {
+    User user = userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Không tìm thấy tài khoản"));
+
+    Customer customer = Customer.builder()
+        .user(user)
+        .note(normalize(note))
+        .build();
+
+    Customer savedCustomer = customerRepository.save(customer);
+
+    return customerMapper.toDto(savedCustomer);
+  }
+
+  private String normalize(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    String normalized = value.trim();
+
+    return normalized.isEmpty()
+        ? null
+        : normalized;
   }
 }

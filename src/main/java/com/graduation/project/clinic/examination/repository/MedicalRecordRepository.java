@@ -16,22 +16,39 @@ import org.springframework.data.repository.query.Param;
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UUID> {
   Optional<MedicalRecord> findByAppointmentId(UUID appointmentId);
 
-  @Query(
-      value =
-          """
+  @EntityGraph(attributePaths = {
+      "appointment",
+      "appointment.pet",
+      "appointment.customer",
+      "appointment.service",
+      "doctor"
+  })
+  @Query("""
+      SELECT medicalRecord
+      FROM MedicalRecord medicalRecord
+      WHERE medicalRecord.appointment.pet.id = :petId
+        AND medicalRecord.appointment.customer.id = :customerId
+        AND medicalRecord.status = :status
+      ORDER BY medicalRecord.updatedAt DESC
+      """)
+  Page<MedicalRecord> findOwnerPetHistory(
+      @Param("petId") UUID petId,
+      @Param("customerId") UUID customerId,
+      @Param("status") MedicalRecordStatus status,
+      Pageable pageable);
+
+  @Query(value = """
       SELECT mr.*
       FROM medical_records mr
       JOIN staff st
         ON st.id = mr.doctor_id
       WHERE mr.id = :recordId
         AND st.user_id = :userId
-      """,
-      nativeQuery = true)
+      """, nativeQuery = true)
   Optional<MedicalRecord> findOwnedById(
       @Param("recordId") UUID recordId, @Param("userId") UUID userId);
 
-  @Query(
-      """
+  @Query("""
       select medicalRecord
       from MedicalRecord medicalRecord
       join fetch medicalRecord.appointment appointment
@@ -43,8 +60,7 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UU
   Optional<MedicalRecord> findByIdFull(@Param("medicalRecordId") UUID medicalRecordId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query(
-      """
+  @Query("""
       select medicalRecord
       from MedicalRecord medicalRecord
       join fetch medicalRecord.appointment appointment
@@ -55,17 +71,13 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UU
       """)
   Optional<MedicalRecord> findByIdForUpdate(@Param("medicalRecordId") UUID medicalRecordId);
 
-  @EntityGraph(attributePaths = {"appointment", "pet", "doctor", "doctor.user"})
-  @Query(
-      value =
-          """
+  @EntityGraph(attributePaths = { "appointment", "pet", "doctor", "doctor.user" })
+  @Query(value = """
       select medicalRecord
       from MedicalRecord medicalRecord
       where medicalRecord.doctor.user.id = :doctorUserId
         and medicalRecord.status = :status
-      """,
-      countQuery =
-          """
+      """, countQuery = """
       select count(medicalRecord)
       from MedicalRecord medicalRecord
       where medicalRecord.doctor.user.id = :doctorUserId
@@ -76,25 +88,23 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UU
       @Param("status") MedicalRecordStatus status,
       Pageable pageable);
 
-  @EntityGraph(attributePaths = {"appointment", "pet", "doctor"})
+  @EntityGraph(attributePaths = { "appointment", "pet", "doctor" })
   Optional<MedicalRecord> findByAppointment_Id(UUID appointmentId);
 
-  @EntityGraph(attributePaths = {"appointment", "pet", "doctor"})
-  @Query(
-      """
+  @EntityGraph(attributePaths = { "appointment", "pet", "doctor" })
+  @Query("""
       SELECT medicalRecord
       FROM MedicalRecord medicalRecord
       WHERE medicalRecord.id = :medicalRecordId
       """)
   Optional<MedicalRecord> findDetailedById(@Param("medicalRecordId") UUID medicalRecordId);
 
-  @EntityGraph(attributePaths = {"appointment", "appointment.pet", "doctor"})
+  @EntityGraph(attributePaths = { "appointment", "appointment.pet", "doctor" })
   Page<MedicalRecord> findByDoctor_UserIdAndStatus(
       UUID userId, MedicalRecordStatus status, Pageable pageable);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query(
-      """
+  @Query("""
       select medicalRecord
       from MedicalRecord medicalRecord
       join fetch medicalRecord.appointment appointment
@@ -103,4 +113,5 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UU
       where medicalRecord.id = :medicalRecordId
       """)
   Optional<MedicalRecord> findDetailedByIdForUpdate(@Param("medicalRecordId") UUID medicalRecordId);
+
 }
