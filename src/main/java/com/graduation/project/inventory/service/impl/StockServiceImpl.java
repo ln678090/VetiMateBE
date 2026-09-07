@@ -351,7 +351,10 @@ public class StockServiceImpl implements StockService {
   // PRIVATE: IMPORT / EXPORT / STOCKTAKE / TRANSFER LOGIC
   // ============================================================
 
-  /** Nhập kho: tạo batch mới cho mỗi dòng item theo destinationWarehouse (mặc định STORAGE) và lưu nhà cung cấp */
+  /**
+   * Nhập kho: tạo batch mới cho mỗi dòng item theo destinationWarehouse (mặc định STORAGE) và lưu
+   * nhà cung cấp
+   */
   private void processImport(StockVoucher voucher, List<StockVoucherItem> items) {
     WarehouseLocation targetWh =
         voucher.getDestinationWarehouse() != null
