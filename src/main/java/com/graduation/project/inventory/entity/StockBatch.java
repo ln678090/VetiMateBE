@@ -4,6 +4,7 @@ import com.graduation.project.product.entity.Product;
 import com.graduation.project.utils.annotation.UuidV7;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -57,6 +58,11 @@ public class StockBatch {
   @Column(name = "import_price", nullable = false, precision = 12, scale = 2)
   @Builder.Default
   private BigDecimal importPrice = BigDecimal.ZERO;
+
+  @Enumerated(jakarta.persistence.EnumType.STRING)
+  @Column(name = "warehouse", nullable = false, length = 30)
+  @Builder.Default
+  private WarehouseLocation warehouse = WarehouseLocation.STORAGE;
 
   @Column(name = "expiry_date")
   private LocalDate expiryDate;

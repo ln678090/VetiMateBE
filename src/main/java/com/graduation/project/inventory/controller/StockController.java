@@ -8,6 +8,7 @@ import com.graduation.project.inventory.dto.resp.StockBatchResp;
 import com.graduation.project.inventory.dto.resp.StockVoucherResp;
 import com.graduation.project.inventory.entity.VoucherStatus;
 import com.graduation.project.inventory.entity.VoucherType;
+import com.graduation.project.inventory.entity.WarehouseLocation;
 import com.graduation.project.inventory.service.StockService;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE', 'ROLE_DOCTOR')")
 public class StockController {
 
   private final StockService stockService;
@@ -113,6 +116,16 @@ public class StockController {
 
   // ===== Batches =====
 
+  @GetMapping("/batches")
+  public ApiResp<List<StockBatchResp>> getBatches(
+      @RequestParam(required = false, defaultValue = "STORAGE") WarehouseLocation warehouse) {
+    return ApiResp.<List<StockBatchResp>>builder()
+        .message("Lấy danh sách lô hàng theo kho thành công")
+        .data(stockService.getBatchesByWarehouse(warehouse))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
   @GetMapping("/batches/medicine/{medicineId}")
   public ApiResp<List<StockBatchResp>> getBatchesByMedicine(@PathVariable UUID medicineId) {
     return ApiResp.<List<StockBatchResp>>builder()
@@ -134,19 +147,44 @@ public class StockController {
   // ===== Alerts =====
 
   @GetMapping("/alerts/near-expiry")
-  public ApiResp<List<StockBatchResp>> getNearExpiryBatches() {
+  public ApiResp<List<StockBatchResp>> getNearExpiryBatches(
+      @RequestParam(required = false, defaultValue = "STORAGE") WarehouseLocation warehouse) {
     return ApiResp.<List<StockBatchResp>>builder()
         .message("Lấy danh sách lô cận date thành công")
-        .data(stockService.getNearExpiryBatches())
+        .data(stockService.getNearExpiryBatches(warehouse))
         .timestamp(Instant.now().toString())
         .build();
   }
 
   @GetMapping("/alerts/expired")
-  public ApiResp<List<StockBatchResp>> getExpiredBatches() {
+  public ApiResp<List<StockBatchResp>> getExpiredBatches(
+      @RequestParam(required = false, defaultValue = "STORAGE") WarehouseLocation warehouse) {
     return ApiResp.<List<StockBatchResp>>builder()
         .message("Lấy danh sách lô hết hạn thành công")
-        .data(stockService.getExpiredBatches())
+        .data(stockService.getExpiredBatches(warehouse))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  // ===== Quick Export Expired Batches to Doctor Warehouse =====
+
+  @PostMapping("/batches/{batchId}/export-to-doctor")
+  public ApiResp<StockVoucherResp> exportExpiredBatchToDoctor(
+      @PathVariable UUID batchId, Authentication authentication) {
+    UUID currentUserId = SecurityUtils.currentUserId(authentication);
+    return ApiResp.<StockVoucherResp>builder()
+        .message("Xuất lô hết date lên kho bác sĩ thành công")
+        .data(stockService.exportExpiredBatchToDoctor(batchId, currentUserId))
+        .timestamp(Instant.now().toString())
+        .build();
+  }
+
+  @PostMapping("/batches/export-all-expired-to-doctor")
+  public ApiResp<StockVoucherResp> exportAllExpiredBatchesToDoctor(Authentication authentication) {
+    UUID currentUserId = SecurityUtils.currentUserId(authentication);
+    return ApiResp.<StockVoucherResp>builder()
+        .message("Xuất tất cả lô hết date lên kho bác sĩ thành công")
+        .data(stockService.exportAllExpiredBatchesToDoctor(currentUserId))
         .timestamp(Instant.now().toString())
         .build();
   }
