@@ -136,6 +136,8 @@ public class StockController {
   }
 
   @GetMapping("/batches/product/{productId}")
+  @PreAuthorize(
+      "hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE', 'ROLE_DOCTOR', 'ROLE_SHOP_STAFF')")
   public ApiResp<List<StockBatchResp>> getBatchesByProduct(@PathVariable UUID productId) {
     return ApiResp.<List<StockBatchResp>>builder()
         .message("Lấy lô hàng theo sản phẩm thành công")
